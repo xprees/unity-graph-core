@@ -1,0 +1,33 @@
+{
+  "name": "cz.xprees.graph-core",
+  "version": "1.0.0",
+  "displayName": "Graph-Core",
+  "description": "This package contains core classes for Runtime Graph Systems based on xNode.",
+  "unity": "2021.3",
+  "unityRelease": "16f1",
+  "license": "Apache-2.0",
+  "category": "Core",
+  "dependencies": {
+    "com.github.siccity.xnode": "1.8.0",
+    "com.github.siccity.xnodegroups": "https://github.com/Siccity/xNodeGroups.git",
+    "com.github.siccity.serializablecallback": "1.0.0",
+    "com.cysharp.unitask": "2.5.10",
+    "com.dbrizov.naughtyattributes": "2.1.4",
+    "cz.xprees.core": "1.0.32",
+    "cz.xprees.events": "1.0.13",
+    "cz.xprees.editor-tools": "1.0.13",
+    "cz.xprees.runtime-anchors": "1.0.10",
+    "cz.xprees.variables": "1.0.11"
+  },
+  "keywords": [
+    "graphs",
+    "Nodes",
+    "xNode-based",
+    "No-code editor"
+  ],
+  "author": {
+    "name": "xprees",
+    "email": "xprees.developer@gmail.com",
+    "url": "https://github.com/xprees"
+  }
+}

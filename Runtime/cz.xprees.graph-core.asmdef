@@ -1,0 +1,25 @@
+{
+  "name": "cz.xprees.graph-core",
+  "rootNamespace": "Xprees.Graph.Core",
+  "references": [
+    "GUID:b8e24fd1eb19b4226afebb2810e3c19b",
+    "GUID:f51ebe6a0ceec4240a699833d6309b23",
+    "GUID:5c01796d064528144a599661eaab93a6",
+    "GUID:11a2306c728a4b843a652ec6c2f142bc",
+    "GUID:776d03a35f1b52c4a9aed9f56d7b4229",
+    "GUID:758763dcb3bb46caad0f8486302cbadf",
+    "GUID:359f36c9ea1441da89f5bbf1778b36d2",
+    "GUID:18c15ac4829a4f5db34ce4aa0dd6e6de",
+    "GUID:653fae70c7574e09a1b05c4d822b5eea",
+    "GUID:999c2ca78ab34358a1222750376a501c"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

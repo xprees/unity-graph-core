@@ -1,0 +1,21 @@
+{
+  "name": "cz.xprees.graph-core.editor",
+  "rootNamespace": "Xprees.Graph.Core",
+  "references": [
+    "GUID:772b3b4db3ab4d3092811691174b84ec",
+    "GUID:f88fb04354076c646a4107a491394033",
+    "GUID:b8e24fd1eb19b4226afebb2810e3c19b",
+    "GUID:002c1bbed08fa44d282ef34fd5edb138"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

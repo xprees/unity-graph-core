@@ -1,0 +1,33 @@
+name: Publish to NPM registry
+
+on:
+  push:
+    branches:
+      - master
+      - release/*
+      - event-logging
+
+jobs:
+  publish-gpr:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    environment: Production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Version Patcher
+        uses: justalemon/VersionPatcher@v0.8
+        with:
+          version: 1.0.${{ github.run_number }}
+          npm-files: 'package.json'
+      - uses: JS-DevTools/npm-publish@v3
+        with:
+          token: ${{ secrets.NPM_AUTH_TOKEN }}
+          access: public
+          tag: latest
+          ignore-scripts: true
+
