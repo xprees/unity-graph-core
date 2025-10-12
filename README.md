@@ -1,5 +1,8 @@
 ﻿# Graph-Core package - `cz.xprees.graph-core`
 
+# [![NPM Version](https://img.shields.io/npm/v/cz.xprees.npc)](https://www.npmjs.com/package/cz.xprees.graph-core)
+
+
 This package provides the core functionality for the xprees Graph system, which is based on [Siccity/xNode](https://github.com/Siccity/xNode) node
 system.
 
