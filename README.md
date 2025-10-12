@@ -57,13 +57,15 @@ Either do it manually or by using the Unity Package Manager UI.
 }
 ```
 
-### Git
+After adding the scoped registries, you can install the package easily via the Unity Package Manager UI by searching for `cz.xprees.graph-core`.
 
-TBA
+### Git URL
 
-### Scoped registry - NPM package
+Install in the package manager using the following Git URL
 
-TBA
+```git
+https://github.com/xprees/unity-graph-core.git
+```
 
 ## Usage
 
