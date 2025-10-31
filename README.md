@@ -45,7 +45,7 @@ Either do it manually or by using the Unity Package Manager UI.
             "url": "https://package.openupm.com",
             "scopes": [
                 "com.cysharp.unitask",
-                "com.github.siccity.xnode",
+                "com.github.siccity",
                 "com.dbrizov.naughtyattributes"
             ]
         },
