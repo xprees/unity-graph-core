@@ -1,6 +1,6 @@
 {
   "name": "cz.xprees.graph-core",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "displayName": "Graph-Core",
   "description": "This package contains core classes for Runtime Graph Systems based on xNode.",
   "unity": "2021.3",
