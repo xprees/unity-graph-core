@@ -15,6 +15,6 @@ namespace Xprees.Graph.Core.Nodes.Branch
         public float passChance = 0.5f;
 
         private readonly Random _random = new();
-        protected override bool GetConditionResult() => _random.NextDouble() >= passChance;
+        protected override bool GetConditionResult() => _random.NextDouble() >= 1f - passChance;
     }
 }
