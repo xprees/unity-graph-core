@@ -27,5 +27,9 @@
     "name": "xprees",
     "email": "xprees.developer@gmail.com",
     "url": "https://github.com/xprees"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xprees/unity-graph-core"
   }
 }
