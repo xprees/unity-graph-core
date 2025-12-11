@@ -1,6 +1,7 @@
 ﻿using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
+using Xprees.Graph.Core.Attributes;
 using Xprees.Graph.Core.Base.Nodes;
 #if UNITY_EDITOR
 using UnityEditor;
@@ -8,6 +9,7 @@ using UnityEditor;
 
 namespace Xprees.Graph.Core.Nodes.Debug
 {
+    [NodeDescription("When this node is reached during execution in the Unity Editor, it will pause the editor.")]
     [NodeTint("#cd0e1e")]
     [CreateNodeMenu("Debug/Pause Point")]
     public class PausePointNode : LinearFlowBaseNode, IPassthroughNode
