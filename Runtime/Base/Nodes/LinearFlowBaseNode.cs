@@ -1,5 +1,6 @@
 ﻿using System.Threading;
 using Cysharp.Threading.Tasks;
+using UnityEngine;
 
 namespace Xprees.Graph.Core.Base.Nodes
 {
@@ -11,7 +12,17 @@ namespace Xprees.Graph.Core.Base.Nodes
         [Output(connectionType = ConnectionType.Override)]
         public GraphConnection output;
 
-        protected override UniTask<BaseNode> GetNextNode(CancellationToken cancellationToken = default) =>
-            new(GetOutputPort(nameof(output)).Connection.node as BaseNode);
+        protected override UniTask<BaseNode> GetNextNode(CancellationToken cancellationToken = default)
+        {
+            var connectionNode = GetOutputPort(nameof(output))?.Connection?.node as BaseNode;
+#if UNITY_EDITOR
+            if (connectionNode == null)
+            {
+                Debug.LogError($"Output port of node {name} from {graph.name} graph is not connected to any node.", this);
+            }
+
+#endif
+            return new UniTask<BaseNode>(connectionNode);
+        }
     }
 }
