@@ -48,14 +48,23 @@ namespace Xprees.Graph.Core.Base
             {
                 if (Ended) return;
 
-                CurrentNode = await CurrentNode.MoveNext(cancellationToken);
+                var nextNode = await CurrentNode.MoveNext(cancellationToken);
+                SetCurrentNode(nextNode);
+                // Passthrough nodes are meant to be "invisible" to parser. aka. Parser shouldn't stay in them waiting for Continue.
                 if (CurrentNode is IPassthroughNode) continue;
 
                 return;
             }
         }
 
-        protected void ResetGraphToStartNode() => CurrentNode = GetStartNode();
+        protected void ResetGraphToStartNode() => SetCurrentNode(GetStartNode());
+
+        /// <summary>
+        /// Directly repositions the parser to a specific node without triggering
+        /// any node logic, side effects, or async awaits.
+        /// Use this to restore state from recorded history.
+        /// </summary>
+        protected void SetCurrentNode(BaseNode node) => CurrentNode = node;
 
         private BaseNode GetStartNode()
         {
@@ -70,7 +79,7 @@ namespace Xprees.Graph.Core.Base
             throw new Exception($"No {nameof(StartNode)} found! Do you have one in the graph: {Graph.name}?");
         }
 
-        public void ResetState() => ResetGraphToStartNode();
+        public virtual void ResetState() => ResetGraphToStartNode();
 
         public void Dispose() => Graph.Deactivate(this);
     }
