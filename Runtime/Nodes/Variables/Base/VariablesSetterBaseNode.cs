@@ -32,7 +32,7 @@ namespace Xprees.Graph.Core.Nodes.Variables.Base
         public override void ResetState()
         {
             variable?.ResetState();
-            valueToSet?.ResetState();
+            valueToSet?.ResetState(); // TODO should we really do this? Causes me error of asset references
         }
     }
 }
