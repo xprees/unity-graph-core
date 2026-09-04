@@ -1,11 +1,13 @@
 ﻿using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
+using Xprees.Core;
 using Xprees.Graph.Core.Attributes;
 using Xprees.Graph.Core.Base.Nodes;
 
 namespace Xprees.Graph.Core.Nodes.Debug
 {
+    [Stateless]
     [NodeTint("#676916")]
     [NodeResizableWidth(200)]
     [CreateNodeMenu("Debug/Log")]

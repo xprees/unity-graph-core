@@ -1,9 +1,11 @@
-﻿using Xprees.Graph.Core.Attributes;
+﻿using Xprees.Core;
+using Xprees.Graph.Core.Attributes;
 using Xprees.Graph.Core.Base.Nodes;
 
 namespace Xprees.Graph.Core.Nodes.Debug
 {
     /// This node has branch functionality based on whether the application is running in the Unity Editor.
+    [StatelessAsset]
     [NodeDescription("Branches based on whether the application is running in the Unity Editor.")]
     [NodeTint("#00aaff")]
     [NodeResizableWidth(250, 1000)]

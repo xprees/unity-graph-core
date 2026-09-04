@@ -18,10 +18,8 @@ namespace Xprees.Graph.Core.Nodes.Wait
         public FloatReference timeToWait = new(5f);
 
         // TODO show progress in the NodeEditor for debugging purposes
-        protected override UniTask Wait(CancellationToken cancellationToken = default)
-        {
-            return UniTask.Delay(TimeSpan.FromSeconds(timeToWait), cancellationToken: cancellationToken);
-        }
+        protected override UniTask Wait(CancellationToken cancellationToken = default) =>
+            UniTask.Delay(TimeSpan.FromSeconds(timeToWait), cancellationToken: cancellationToken);
 
         public override void BackupStartState()
         {

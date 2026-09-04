@@ -4,12 +4,13 @@ using Cysharp.Threading.Tasks;
 using NaughtyAttributes;
 using UnityEngine;
 using XNode;
+using Xprees.Core;
 using Xprees.Graph.Core.Attributes;
 using Xprees.Graph.Core.Base.Nodes;
 
 namespace Xprees.Graph.Core.Nodes.Debug
 {
-    /// This node has no functionality, it's just a note.
+    [Stateless]
     [NodeDescription("This node has no functionality, it's just a note. Not used in runtime.")]
     [NodeTint("#d1b100")]
     [NodeResizableWidth(250, 1000)]
