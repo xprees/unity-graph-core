@@ -2,7 +2,6 @@
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
-using Xprees.EditorTools.Attributes.ReadOnly;
 using Xprees.Events.ScriptableObjects.Base;
 using Xprees.Graph.Core.Attributes;
 using Xprees.Variables.Reference.Primitive;
@@ -21,10 +20,7 @@ namespace Xprees.Graph.Core.Base.Nodes
                  + "Otherwise can skip waiting if the event already happened before it was triggered.")]
         public BoolReference triggerActivated = new(false);
 
-        [Header("Internal info")]
-        [ReadOnly] [SerializeField] protected bool isEventRaised = false;
-
-        private CancellationTokenSource _cts;
+        protected bool isEventRaised = false;
 
         protected private void OnEventRaised()
         {
@@ -36,9 +32,15 @@ namespace Xprees.Graph.Core.Base.Nodes
 
         protected override async UniTask Wait(CancellationToken cancellationToken = default)
         {
-            if (triggerActivated) ResetState(); // Reset state to ignore any events before the node is triggered
-            await UniTask.WaitUntil(CanMoveOn, cancellationToken: cancellationToken);
-            ResetState(); // Reset state after the event is raised to allow the node to be reused
+            try
+            {
+                if (triggerActivated) ResetState(); // Reset state to ignore any events before the node is triggered
+                await UniTask.WaitUntil(CanMoveOn, cancellationToken: cancellationToken);
+            }
+            finally
+            {
+                ResetState(); // Reset state after the event is raised to allow the node to be reused
+            }
         }
 
         /// Override this method to add custom logic to add condition when the node can move on
