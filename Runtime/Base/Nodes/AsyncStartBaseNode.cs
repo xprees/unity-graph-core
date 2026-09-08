@@ -10,7 +10,7 @@ namespace Xprees.Graph.Core.Base.Nodes
     /// We allow multiple async start points per graph, in contrast to StartNode, which must be exactly one.
     [NodeResizableWidth(200)]
     [NodeTint("#03a345")]
-    public abstract class AsyncStartBaseNode : BaseNode, IPassthroughNode, ITraverseGraphMixin
+    public abstract class AsyncStartBaseNode : BaseNode, IPassthroughNode, ITraverseGraphMixin, ICancellableFlowOwner
     {
         [Output(connectionType = ConnectionType.Override)]
         public GraphConnection start;
@@ -19,7 +19,10 @@ namespace Xprees.Graph.Core.Base.Nodes
                  + " If false, the node is inactive and does not accept the events.")]
         public BoolReference activeStart = new(true); // User-driven node activation
 
-        private CancellationTokenSource _cts;
+        /// Kill switch shared by every flow started from this node. It is never used to cancel a
+        /// previous flow - the event this node listens to can legitimately fire while an earlier
+        /// flow is still running, and those flows must not tear each other down.
+        private CancellationTokenSource _nodeCts;
 
         /// Starts the graph execution from GetNextNode result or fallbacks to this node when the event is raised.
         protected override async sealed UniTask Trigger(CancellationToken cancellationToken = default)
@@ -27,18 +30,19 @@ namespace Xprees.Graph.Core.Base.Nodes
             if (!IsActive) return; // If the node itself is not active, we ignore the trigger -> in inactive graph.
             if (!activeStart) return; // If the user decided to disable the start node, we ignore the trigger.
 
-            SetupCts();
-            var token = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cts.Token).Token;
+            _nodeCts ??= new CancellationTokenSource();
+            var nodeToken = _nodeCts.Token; // captured before awaiting - CancelFlows() may replace _nodeCts
+
+            using var flowCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, nodeToken);
+            var token = flowCts.Token;
+
             var startNode = await GetNextNode(token);
             await (this as ITraverseGraphMixin)
                 .TraverseGraph(graph as GraphBase, startNode ?? this, token);
-            CleanupCts();
         }
 
         /// Starts the graph execution from this node when the event is raised.
         protected virtual void StartFlow() => Trigger().Forget();
-
-        protected virtual void StartFlow(CancellationToken cancellationToken) => Trigger(cancellationToken).Forget();
 
         protected override UniTask<BaseNode> GetNextNode(CancellationToken cancellationToken = default)
         {
@@ -59,7 +63,7 @@ namespace Xprees.Graph.Core.Base.Nodes
         protected virtual void OnDisable()
         {
             CleanupEvents();
-            CleanupCts();
+            CancelFlows();
         }
 
         /// Use this method to set up any event subscriptions or listeners (called in Init aka onEnable)
@@ -84,20 +88,18 @@ namespace Xprees.Graph.Core.Base.Nodes
         {
             base.ResetState();
             activeStart?.ResetState();
-            CleanupCts();
+            CancelFlows();
         }
 
-        private void SetupCts()
+        /// Cancels every flow currently in flight from this node. The next trigger lazily
+        /// creates a fresh kill switch, so the node stays usable afterwards.
+        public void CancelFlows()
         {
-            CleanupCts();
-            _cts = new CancellationTokenSource();
-        }
+            if (_nodeCts == null) return;
 
-        private void CleanupCts()
-        {
-            _cts?.Cancel();
-            _cts?.Dispose();
-            _cts = null;
+            _nodeCts.Cancel();
+            _nodeCts.Dispose();
+            _nodeCts = null;
         }
 
         #endregion

@@ -116,7 +116,6 @@ namespace Xprees.Graph.Core.Base.Nodes
         public override void ResetState()
         {
             base.ResetState();
-            eventChannel?.ResetState();
             eventData = default;
         }
     }
@@ -149,7 +148,6 @@ namespace Xprees.Graph.Core.Base.Nodes
         public override void ResetState()
         {
             base.ResetState();
-            eventChannel?.ResetState();
             eventData = default;
         }
     }
@@ -182,7 +180,6 @@ namespace Xprees.Graph.Core.Base.Nodes
         public override void ResetState()
         {
             base.ResetState();
-            eventChannel?.ResetState();
             eventData = default;
         }
     }

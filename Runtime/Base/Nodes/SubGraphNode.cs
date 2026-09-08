@@ -7,7 +7,7 @@ namespace Xprees.Graph.Core.Base.Nodes
     [NodeTint("#009C8B")]
     [NodeWidth(350)]
     [CreateNodeMenu("SubGraph", 0)]
-    public class SubGraphNode : LinearFlowBaseNode, IPassthroughNode, ITraverseGraphMixin
+    public class SubGraphNode : LinearFlowBaseNode, IPassthroughNode, ITraverseGraphMixin, ICancellableFlowOwner
     {
         [Header("SubGraph")]
         public GraphBase subGraph;
@@ -18,7 +18,11 @@ namespace Xprees.Graph.Core.Base.Nodes
         public override void ResetState()
         {
             base.ResetState();
-            subGraph?.ResetState();
+        }
+
+        public void CancelFlows()
+        {
+            subGraph?.CancelActiveFlows();
         }
     }
 }

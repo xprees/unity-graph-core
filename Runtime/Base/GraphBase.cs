@@ -12,6 +12,10 @@ namespace Xprees.Graph.Core.Base
         private readonly HashSet<GraphParserBase> _activeParsers = new();
         public bool IsActive => _activeParsers.Count > 0;
 
+        /// Sub-graphs cascade flow cancellation back into GraphBase, so a shared or cyclic
+        /// sub-graph would otherwise recurse without end.
+        private bool _isCancellingFlows;
+
         /// Call this method before your start working with the graph.
         /// Activates and initializes the graph, if it already wasn't initialized.
         public void Activate(GraphParserBase parserCtx)
@@ -51,6 +55,26 @@ namespace Xprees.Graph.Core.Base
         public virtual void ResetState()
         {
             _activeParsers.Clear();
+        }
+
+        /// Cancels every asynchronous flow still in flight in this graph and its sub-graphs.
+        /// Async start nodes run their own parser, so stopping the main parser does not stop them.
+        public void CancelActiveFlows()
+        {
+            if (_isCancellingFlows || nodes == null) return;
+
+            try
+            {
+                _isCancellingFlows = true;
+                foreach (var node in nodes)
+                {
+                    if (node is ICancellableFlowOwner flowOwner) flowOwner.CancelFlows();
+                }
+            }
+            finally
+            {
+                _isCancellingFlows = false;
+            }
         }
     }
 }
