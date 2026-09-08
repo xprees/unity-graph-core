@@ -25,7 +25,6 @@ namespace Xprees.Graph.Core.Nodes.Start
         public override void ResetState()
         {
             base.ResetState();
-            eventChannel?.ResetState();
         }
 
 #if UNITY_EDITOR
@@ -40,5 +39,6 @@ namespace Xprees.Graph.Core.Nodes.Start
             name = $"On {eventChannel.name}";
         }
 #endif
+
     }
 }

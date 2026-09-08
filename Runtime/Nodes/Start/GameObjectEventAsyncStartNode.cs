@@ -28,7 +28,6 @@ namespace Xprees.Graph.Core.Nodes.Start
         public override void ResetState()
         {
             base.ResetState();
-            if (eventChannel) eventChannel?.ResetState();
         }
 
 #if UNITY_EDITOR

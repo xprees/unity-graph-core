@@ -18,11 +18,5 @@ namespace Xprees.Graph.Core.Nodes.Events.Primitive
 
             return UniTask.CompletedTask;
         }
-
-        public override void ResetState()
-        {
-            base.ResetState();
-            eventChannel?.ResetState();
-        }
     }
 }

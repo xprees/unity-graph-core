@@ -26,11 +26,5 @@ namespace Xprees.Graph.Core.Nodes.Wait.Events
         }
 
         private new void OnEventRaised() => base.OnEventRaised();
-
-        public override void ResetState()
-        {
-            base.ResetState();
-            eventChannel?.ResetState();
-        }
     }
 }

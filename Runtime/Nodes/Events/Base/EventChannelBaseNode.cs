@@ -19,12 +19,6 @@ namespace Xprees.Graph.Core.Nodes.Events.Base
         }
 
         protected abstract UniTask<T> GetEventData(CancellationToken cancellationToken = default);
-
-        public override void ResetState()
-        {
-            base.ResetState();
-            eventChannel?.ResetState();
-        }
     }
 
     [NodeResizableWidth(300)]
@@ -40,12 +34,6 @@ namespace Xprees.Graph.Core.Nodes.Events.Base
         }
 
         protected abstract UniTask<Tuple<T1, T2>> GetEventData(CancellationToken cancellationToken = default);
-
-        public override void ResetState()
-        {
-            base.ResetState();
-            eventChannel?.ResetState();
-        }
     }
 
     [NodeResizableWidth(300)]
@@ -61,11 +49,5 @@ namespace Xprees.Graph.Core.Nodes.Events.Base
         }
 
         protected abstract UniTask<Tuple<T1, T2, T3>> GetEventData(CancellationToken cancellationToken = default);
-
-        public override void ResetState()
-        {
-            base.ResetState();
-            eventChannel?.ResetState();
-        }
     }
 }
