@@ -20,17 +20,5 @@ namespace Xprees.Graph.Core.Nodes.Wait
         // TODO show progress in the NodeEditor for debugging purposes
         protected override UniTask Wait(CancellationToken cancellationToken = default) =>
             UniTask.Delay(TimeSpan.FromSeconds(timeToWait), cancellationToken: cancellationToken);
-
-        public override void BackupStartState()
-        {
-            base.BackupStartState();
-            timeToWait?.BackupStartState();
-        }
-
-        public override void ResetState()
-        {
-            base.ResetState();
-            timeToWait?.ResetState();
-        }
     }
 }

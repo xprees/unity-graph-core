@@ -14,17 +14,5 @@ namespace Xprees.Graph.Core.Nodes.Events.Primitive
         public IntReference valueReference = new();
 
         protected override UniTask<int> GetEventData(CancellationToken cancellationToken = default) => new(valueReference.Value);
-
-        public override void BackupStartState()
-        {
-            base.BackupStartState();
-            valueReference?.BackupStartState();
-        }
-
-        public override void ResetState()
-        {
-            base.ResetState();
-            valueReference?.ResetState();
-        }
     }
 }

@@ -1,6 +1,7 @@
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
+using Xprees.Core;
 using Xprees.Graph.Core.Attributes;
 using Xprees.Variables.Reference.Primitive;
 
@@ -10,7 +11,7 @@ namespace Xprees.Graph.Core.Base.Nodes
     /// We allow multiple async start points per graph, in contrast to StartNode, which must be exactly one.
     [NodeResizableWidth(200)]
     [NodeTint("#03a345")]
-    public abstract class AsyncStartBaseNode : BaseNode, IPassthroughNode, ITraverseGraphMixin, ICancellableFlowOwner
+    public abstract class AsyncStartBaseNode : BaseNode, IPassthroughNode, ITraverseGraphMixin, ICancellableFlowOwner, IRuntimeStateOwner
     {
         [Output(connectionType = ConnectionType.Override)]
         public GraphConnection start;
@@ -78,17 +79,14 @@ namespace Xprees.Graph.Core.Base.Nodes
             // Unsubscribe from events here if needed.
         }
 
-        public override void BackupStartState()
+        public virtual void ClearTransientState()
         {
-            base.BackupStartState();
-            activeStart?.BackupStartState();
+            CancelFlows();
         }
 
         public override void ResetState()
         {
-            base.ResetState();
-            activeStart?.ResetState();
-            CancelFlows();
+            ClearTransientState();
         }
 
         /// Cancels every flow currently in flight from this node. The next trigger lazily

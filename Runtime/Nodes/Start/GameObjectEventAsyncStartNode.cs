@@ -25,11 +25,6 @@ namespace Xprees.Graph.Core.Nodes.Start
 
         private void OnEventRaised(GameObject _) => StartFlow();
 
-        public override void ResetState()
-        {
-            base.ResetState();
-        }
-
 #if UNITY_EDITOR
         private void OnValidate() => SetBetterNodeName();
 

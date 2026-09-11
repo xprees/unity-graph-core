@@ -9,11 +9,5 @@ namespace Xprees.Graph.Core.Nodes.Branch
         public BoolVariable boolVariable;
 
         protected override bool GetConditionResult() => boolVariable.CurrentValue;
-
-        public override void ResetState()
-        {
-            base.ResetState();
-            boolVariable?.ResetState();
-        }
     }
 }

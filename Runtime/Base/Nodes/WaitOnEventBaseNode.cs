@@ -2,6 +2,7 @@
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
+using Xprees.Core;
 using Xprees.Events.ScriptableObjects.Base;
 using Xprees.Graph.Core.Attributes;
 using Xprees.Variables.Reference.Primitive;
@@ -10,7 +11,7 @@ namespace Xprees.Graph.Core.Base.Nodes
 {
     [NodeTint("#68427B")]
     [NodeResizableWidth(300)]
-    public abstract class WaitOnEventBaseNode : WaitBaseNode
+    public abstract class WaitOnEventBaseNode : WaitBaseNode, IRuntimeStateOwner
     {
         [Header("Settings")]
         [Tooltip("If true, the node will accept events. If false, the node will ignore events.")]
@@ -69,19 +70,14 @@ namespace Xprees.Graph.Core.Base.Nodes
             // Cleanup event listeners here if needed
         }
 
-        public override void BackupStartState()
+        public virtual void ClearTransientState()
         {
-            base.BackupStartState();
-            acceptingEvents?.BackupStartState();
-            triggerActivated?.BackupStartState();
+            isEventRaised = false;
         }
 
         public override void ResetState()
         {
-            base.ResetState();
-            isEventRaised = false;
-            acceptingEvents?.ResetState();
-            triggerActivated?.ResetState();
+            ClearTransientState();
         }
 
         #endregion
@@ -113,10 +109,15 @@ namespace Xprees.Graph.Core.Base.Nodes
             OnEventRaised();
         }
 
+        public override void ClearTransientState()
+        {
+            base.ClearTransientState();
+            eventData = default;
+        }
+
         public override void ResetState()
         {
-            base.ResetState();
-            eventData = default;
+            ClearTransientState();
         }
     }
 
@@ -145,10 +146,15 @@ namespace Xprees.Graph.Core.Base.Nodes
             OnEventRaised();
         }
 
+        public override void ClearTransientState()
+        {
+            base.ClearTransientState();
+            eventData = default;
+        }
+
         public override void ResetState()
         {
-            base.ResetState();
-            eventData = default;
+            ClearTransientState();
         }
     }
 
@@ -177,10 +183,15 @@ namespace Xprees.Graph.Core.Base.Nodes
             OnEventRaised();
         }
 
+        public override void ClearTransientState()
+        {
+            base.ClearTransientState();
+            eventData = default;
+        }
+
         public override void ResetState()
         {
-            base.ResetState();
-            eventData = default;
+            ClearTransientState();
         }
     }
 }

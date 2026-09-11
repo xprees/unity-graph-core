@@ -22,11 +22,6 @@ namespace Xprees.Graph.Core.Nodes.Start
             if (eventChannel) eventChannel.onEventRaised -= StartFlow;
         }
 
-        public override void ResetState()
-        {
-            base.ResetState();
-        }
-
 #if UNITY_EDITOR
         private void OnValidate() => SetBetterNodeName();
 

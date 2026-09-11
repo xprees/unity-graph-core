@@ -21,17 +21,5 @@ namespace Xprees.Graph.Core.Nodes.Unity
 
             return UniTask.CompletedTask;
         }
-
-        public override void BackupStartState()
-        {
-            base.BackupStartState();
-            active?.BackupStartState();
-        }
-
-        public override void ResetState()
-        {
-            gameObjectAnchor?.ResetState();
-            active?.ResetState();
-        }
     }
 }

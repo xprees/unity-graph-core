@@ -24,17 +24,5 @@ namespace Xprees.Graph.Core.Nodes.Util
             GUIUtility.systemCopyBuffer = textToCopy.Value;
             return base.Trigger(cancellationToken);
         }
-
-        public override void BackupStartState()
-        {
-            base.BackupStartState();
-            textToCopy?.BackupStartState();
-        }
-
-        public override void ResetState()
-        {
-            base.ResetState();
-            textToCopy?.ResetState();
-        }
     }
 }

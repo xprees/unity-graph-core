@@ -38,18 +38,5 @@ namespace Xprees.Graph.Core.Nodes.Unity
 
             return base.Trigger(cancellationToken);
         }
-
-        public override void BackupStartState()
-        {
-            base.BackupStartState();
-            prefabSpawned?.BackupStartState();
-        }
-
-        public override void ResetState()
-        {
-            base.ResetState();
-            prefabSpawned?.ResetState();
-            spawnPositionAnchor?.ResetState(); // Reset the anchor state
-        }
     }
 }

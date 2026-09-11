@@ -22,17 +22,5 @@ namespace Xprees.Graph.Core.Nodes.Variables.Base
         }
 
         protected virtual T GetValueToSet() => valueToSet.Value;
-
-        public override void BackupStartState()
-        {
-            base.BackupStartState();
-            valueToSet?.BackupStartState();
-        }
-
-        public override void ResetState()
-        {
-            variable?.ResetState();
-            valueToSet?.ResetState(); // TODO should we really do this? Causes me error of asset references
-        }
     }
 }

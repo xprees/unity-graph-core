@@ -15,17 +15,5 @@ namespace Xprees.Graph.Core.Nodes.Wait.Variables.Base
 
         /// Override this method to change the value condition check. Default is Equals().
         protected virtual bool VariableHasMetValueCondition() => value.Value.Equals(variable.CurrentValue);
-
-        public override void BackupStartState()
-        {
-            base.BackupStartState();
-            value?.BackupStartState();
-        }
-
-        public override void ResetState()
-        {
-            base.ResetState();
-            value?.ResetState();
-        }
     }
 }

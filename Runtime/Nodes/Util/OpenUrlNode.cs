@@ -21,17 +21,5 @@ namespace Xprees.Graph.Core.Nodes.Util
             if (!string.IsNullOrEmpty(url.Value?.Trim())) Application.OpenURL(url.Value);
             return base.Trigger(cancellationToken);
         }
-
-        public override void BackupStartState()
-        {
-            base.BackupStartState();
-            url?.BackupStartState();
-        }
-
-        public override void ResetState()
-        {
-            base.ResetState();
-            url?.ResetState();
-        }
     }
 }

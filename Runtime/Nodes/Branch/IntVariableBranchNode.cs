@@ -21,18 +21,5 @@ namespace Xprees.Graph.Core.Nodes.Branch
 
         protected override bool GetConditionResult() =>
             method.CompareValues(intVariable.CurrentValue, compareValue.Value);
-
-        public override void BackupStartState()
-        {
-            base.BackupStartState();
-            compareValue?.BackupStartState();
-        }
-
-        public override void ResetState()
-        {
-            base.ResetState();
-            intVariable?.ResetState();
-            compareValue?.ResetState();
-        }
     }
 }

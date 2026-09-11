@@ -39,11 +39,5 @@ namespace Xprees.Graph.Core.Nodes.Events.Base
         }
 
         private bool IsAnchorSet() => anchor.isSet;
-
-        public override void ResetState()
-        {
-            base.ResetState();
-            anchor?.ResetState();
-        }
     }
 }

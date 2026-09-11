@@ -20,13 +20,6 @@ namespace Xprees.Graph.Core.Nodes.Variables.Base
         {
             base.Init();
             SetDefaultIncrementValueIfNotSet();
-            incrementBy?.BackupStartState();
-        }
-
-        public override void BackupStartState()
-        {
-            base.BackupStartState();
-            incrementBy?.BackupStartState();
         }
 
         private void SetDefaultIncrementValueIfNotSet()
@@ -52,13 +45,6 @@ namespace Xprees.Graph.Core.Nodes.Variables.Base
             if (variable != null) variable.CurrentValue = GetIncrementedValue(variable.CurrentValue, incrementBy.Value);
 
             return UniTask.CompletedTask;
-        }
-
-        public override void ResetState()
-        {
-            variable?.ResetState();
-            incrementBy?.ResetState();
-            SetDefaultIncrementValueIfNotSet();
         }
     }
 }

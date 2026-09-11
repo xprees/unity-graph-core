@@ -1,4 +1,5 @@
-﻿using System.Threading;
+﻿using System;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using XNode;
@@ -47,11 +48,11 @@ namespace Xprees.Graph.Core.Base.Nodes
         protected override void Init()
         {
             base.Init();
-            BackupStartState();
         }
 
         /// Use it to back-up start state when needed.
         /// Called when the node is initialized.
+        [Obsolete("Inline values are backed up automatically via ISerializationCallbackReceiver.OnAfterDeserialize.")]
         public virtual void BackupStartState()
         {
         }

@@ -8,11 +8,5 @@ namespace Xprees.Graph.Core.Nodes.Wait.Variables.Base
     {
         [Header("Variable")]
         public VariableBaseSO<T> variable;
-
-        public override void ResetState()
-        {
-            base.ResetState();
-            variable?.ResetState();
-        }
     }
 }

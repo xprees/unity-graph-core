@@ -57,11 +57,5 @@ namespace Xprees.Graph.Core.Nodes.Branch
             var defaultCaseNextNode = GetOutputPort(nameof(defaultCase)).Connection.node as BaseNode;
             return new(defaultCaseNextNode);
         }
-
-        public override void ResetState()
-        {
-            base.ResetState();
-            stringVariable?.ResetState();
-        }
     }
 }

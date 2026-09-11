@@ -15,11 +15,6 @@ namespace Xprees.Graph.Core.Base.Nodes
         protected override UniTask Trigger(CancellationToken cancellationToken = default) =>
             (this as ITraverseGraphMixin).TraverseGraph(subGraph, cancellationToken: cancellationToken);
 
-        public override void ResetState()
-        {
-            base.ResetState();
-        }
-
         public void CancelFlows()
         {
             subGraph?.CancelActiveFlows();

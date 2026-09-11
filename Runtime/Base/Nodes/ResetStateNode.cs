@@ -38,17 +38,5 @@ namespace Xprees.Graph.Core.Base.Nodes
 
             return UniTask.CompletedTask;
         }
-
-        public override void BackupStartState()
-        {
-            base.BackupStartState();
-            activate?.BackupStartState();
-        }
-
-        public override void ResetState()
-        {
-            base.ResetState();
-            activate?.ResetState();
-        }
     }
 }

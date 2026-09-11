@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using XNode;
 using Xprees.Core;
@@ -7,7 +8,7 @@ namespace Xprees.Graph.Core.Base
 {
     [StatefulLifetime(StateLifetime.Scenario)]
     [RequireNode(typeof(StartNode), typeof(EndNode))]
-    public class GraphBase : NodeGraph, IResettable
+    public class GraphBase : NodeGraph, IRuntimeStateOwner, IResettable
     {
         private readonly HashSet<GraphParserBase> _activeParsers = new();
         public bool IsActive => _activeParsers.Count > 0;
@@ -51,11 +52,14 @@ namespace Xprees.Graph.Core.Base
         {
         }
 
-        /// Resets all temporary data on graph to default state.
-        public virtual void ResetState()
+        /// Clears all transient in-flight parser sessions from this graph.
+        public virtual void ClearTransientState()
         {
             _activeParsers.Clear();
         }
+
+        [Obsolete("Use ClearTransientState() instead.")]
+        public virtual void ResetState() => ClearTransientState();
 
         /// Cancels every asynchronous flow still in flight in this graph and its sub-graphs.
         /// Async start nodes run their own parser, so stopping the main parser does not stop them.
