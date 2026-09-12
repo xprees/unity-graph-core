@@ -24,7 +24,7 @@ jobs:
       - name: Version Patcher
         uses: justalemon/VersionPatcher@v0.8
         with:
-          version: 1.0.${{ github.run_number }}
+          version: 2.0.${{ github.run_number }}
           npm-files: 'package.json'
 
       # Ensure npm 11.5.1 or later is installed

@@ -1,14 +1,13 @@
 using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Xprees.Core;
 using Xprees.Graph.Core.Base.Nodes;
 
 namespace Xprees.Graph.Core.Base
 {
     /// Any <see cref="GraphBase"/> can traversed by a <see cref="GraphParserBase"/>.
-    /// Each instance of parser keeps its state of current walkthrough. Making it possible to have multiple walkthroughes of the same graph.
-    public class GraphParserBase : IResettable, IDisposable
+    /// Each instance of parser keeps its state of current walkthrough. Making it possible to have multiple walkthroughs of the same graph.
+    public class GraphParserBase : IDisposable
     {
         private bool IsCurrentNodeNotSet => CurrentNode == null;
 
@@ -59,27 +58,20 @@ namespace Xprees.Graph.Core.Base
 
         protected void ResetGraphToStartNode() => SetCurrentNode(GetStartNode());
 
-        /// <summary>
         /// Directly repositions the parser to a specific node without triggering
         /// any node logic, side effects, or async awaits.
         /// Use this to restore state from recorded history.
-        /// </summary>
         protected void SetCurrentNode(BaseNode node) => CurrentNode = node;
 
         private BaseNode GetStartNode()
         {
             foreach (var node in Graph.nodes)
             {
-                if (node is StartNode startNode)
-                {
-                    return startNode;
-                }
+                if (node is StartNode startNode) return startNode;
             }
 
             throw new Exception($"No {nameof(StartNode)} found! Do you have one in the graph: {Graph.name}?");
         }
-
-        public virtual void ResetState() => ResetGraphToStartNode();
 
         public void Dispose() => Graph.Deactivate(this);
     }

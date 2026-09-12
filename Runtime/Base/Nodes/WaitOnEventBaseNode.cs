@@ -33,15 +33,9 @@ namespace Xprees.Graph.Core.Base.Nodes
 
         protected override async UniTask Wait(CancellationToken cancellationToken = default)
         {
-            try
-            {
-                if (triggerActivated) ResetState(); // Reset state to ignore any events before the node is triggered
-                await UniTask.WaitUntil(CanMoveOn, cancellationToken: cancellationToken);
-            }
-            finally
-            {
-                ResetState(); // Reset state after the event is raised to allow the node to be reused
-            }
+            if (triggerActivated) ClearTransientState(); // Clear state to ignore any events before the node is triggered
+            await UniTask.WaitUntil(CanMoveOn, cancellationToken: cancellationToken);
+            ClearTransientState(); // Clear state after the event is raised to allow the node to be reused
         }
 
         /// Override this method to add custom logic to add condition when the node can move on
@@ -53,7 +47,7 @@ namespace Xprees.Graph.Core.Base.Nodes
         {
             base.Init();
             SetupEvents();
-            ResetState();
+            ClearTransientState();
         }
 
         protected virtual void OnDisable() => CleanupEvents();
@@ -73,11 +67,6 @@ namespace Xprees.Graph.Core.Base.Nodes
         public virtual void ClearTransientState()
         {
             isEventRaised = false;
-        }
-
-        public override void ResetState()
-        {
-            ClearTransientState();
         }
 
         #endregion
@@ -114,11 +103,6 @@ namespace Xprees.Graph.Core.Base.Nodes
             base.ClearTransientState();
             eventData = default;
         }
-
-        public override void ResetState()
-        {
-            ClearTransientState();
-        }
     }
 
     public abstract class WaitOnEventBaseNode<T1, T2> : WaitOnEventBaseNode
@@ -151,11 +135,6 @@ namespace Xprees.Graph.Core.Base.Nodes
             base.ClearTransientState();
             eventData = default;
         }
-
-        public override void ResetState()
-        {
-            ClearTransientState();
-        }
     }
 
     public abstract class WaitOnEventBaseNode<T1, T2, T3> : WaitOnEventBaseNode
@@ -187,11 +166,6 @@ namespace Xprees.Graph.Core.Base.Nodes
         {
             base.ClearTransientState();
             eventData = default;
-        }
-
-        public override void ResetState()
-        {
-            ClearTransientState();
         }
     }
 }

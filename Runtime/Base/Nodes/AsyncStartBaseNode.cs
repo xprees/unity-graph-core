@@ -59,6 +59,7 @@ namespace Xprees.Graph.Core.Base.Nodes
         {
             base.Init();
             SetupEvents();
+            ClearTransientState();
         }
 
         protected virtual void OnDisable()
@@ -79,15 +80,7 @@ namespace Xprees.Graph.Core.Base.Nodes
             // Unsubscribe from events here if needed.
         }
 
-        public virtual void ClearTransientState()
-        {
-            CancelFlows();
-        }
-
-        public override void ResetState()
-        {
-            ClearTransientState();
-        }
+        public virtual void ClearTransientState() => CancelFlows();
 
         /// Cancels every flow currently in flight from this node. The next trigger lazily
         /// creates a fresh kill switch, so the node stays usable afterwards.

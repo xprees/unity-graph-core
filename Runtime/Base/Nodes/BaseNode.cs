@@ -1,13 +1,11 @@
-﻿using System;
-using System.Threading;
+﻿using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using XNode;
-using Xprees.Core;
 
 namespace Xprees.Graph.Core.Base.Nodes
 {
-    public abstract class BaseNode : Node, IResettable
+    public abstract class BaseNode : Node
     {
 
         #region Editor properties
@@ -27,10 +25,7 @@ namespace Xprees.Graph.Core.Base.Nodes
             if (!IsActive) return null; // Node is not active, do not trigger it and don't move to next node.
 
             var next = await GetNextNode(cancellationToken);
-            if (next != null)
-            {
-                await next.Trigger(cancellationToken);
-            }
+            if (next) await next.Trigger(cancellationToken);
 
             return next;
         }
@@ -44,21 +39,5 @@ namespace Xprees.Graph.Core.Base.Nodes
         /// Override to implement logic for getting the next node.
         /// Can be asynchronous if needed, so you can await operations (wait for user input etc.) before returning the next node.
         protected abstract UniTask<BaseNode> GetNextNode(CancellationToken cancellationToken = default);
-
-        protected override void Init()
-        {
-            base.Init();
-        }
-
-        /// Use it to back-up start state when needed.
-        /// Called when the node is initialized.
-        [Obsolete("Inline values are backed up automatically via ISerializationCallbackReceiver.OnAfterDeserialize.")]
-        public virtual void BackupStartState()
-        {
-        }
-
-        public virtual void ResetState()
-        {
-        }
     }
 }
