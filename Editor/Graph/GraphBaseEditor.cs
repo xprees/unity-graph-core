@@ -1,9 +1,11 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 using XNode;
 using XNodeEditor;
 using Xprees.Graph.Core.Base;
+using Xprees.Graph.Core.Editor.Navigation;
+using Xprees.Graph.Core.Editor.Toolbar;
 
 namespace Xprees.Graph.Core.Editor.Graph
 {
@@ -13,11 +15,13 @@ namespace Xprees.Graph.Core.Editor.Graph
         // Rough node layout used to estimate port positions of nodes that were not drawn yet
         private const float estimatedHeaderHeight = 30f;
         private const float estimatedPortLineHeight = 20f;
+        private readonly static Vector2 defaultNodeSize = new(200, 100);
 
         private const float highlightDuration = 2f;
         private const float highlightThickness = 3f;
         private const float highlightPadding = 6f;
         private const float maxFocusZoom = 1.5f;
+        private const float frameAllMargin = 1.15f;
         private readonly static Color highlightColor = new(1f, 0.8f, 0.1f);
 
         private static int lastTargetHash;
@@ -25,12 +29,17 @@ namespace Xprees.Graph.Core.Editor.Graph
         private static Node highlightedNode;
         private static double highlightStartTime;
 
+        /// Node to focus once its graph is shown - graph switches reset the view, so focusing has to wait for it.
+        private static Node pendingFocusNode;
+
         /// Ports we already requested a repaint for. Ports never drawn by their node editor would otherwise repaint forever.
         private readonly HashSet<NodePort> _seededPorts = new();
 
         public override void OnGUI()
         {
             base.OnGUI();
+
+            GraphEditorToolbar.EnsureAttached(window, target);
 
             if (Event.current.type == EventType.Repaint)
             {
@@ -45,9 +54,56 @@ namespace Xprees.Graph.Core.Editor.Graph
             OnGraphChange();
         }
 
-        protected virtual void OnGraphChange() => ResetViewPositionOnSwitchIfNoNodesVisible();
+        protected virtual void OnGraphChange()
+        {
+            GraphNavigation.OnGraphShown(target);
+            GraphEditorToolbar.Refresh(window, target);
 
-        private void ResetViewPositionOnSwitchIfNoNodesVisible() => NodeEditorWindow.current.Home();
+            if (pendingFocusNode && pendingFocusNode.graph == target)
+            {
+                var node = pendingFocusNode;
+                pendingFocusNode = null;
+                FocusNodeInWindow(window, node);
+                return;
+            }
+
+            FrameAll(window);
+        }
+
+        #region View
+
+        /// Centers the view on all nodes and zooms out so they fit into the window.
+        public static void FrameAll(NodeEditorWindow window)
+        {
+            if (!window || !window.graph) return;
+
+            var hasNodes = false;
+            var bounds = new Rect();
+            foreach (var node in window.graph.nodes)
+            {
+                if (!node) continue;
+
+                var rect = new Rect(node.position, GetNodeSize(window, node));
+                bounds = hasNodes
+                    ? Rect.MinMaxRect(
+                        Mathf.Min(bounds.xMin, rect.xMin), Mathf.Min(bounds.yMin, rect.yMin),
+                        Mathf.Max(bounds.xMax, rect.xMax), Mathf.Max(bounds.yMax, rect.yMax))
+                    : rect;
+                hasNodes = true;
+            }
+
+            if (!hasNodes)
+            {
+                window.panOffset = Vector2.zero;
+                window.zoom = 1f;
+                return;
+            }
+
+            // Zoom is a scale of the visible grid area (higher value = further out)
+            var viewSize = window.position.size - new Vector2(0, GraphEditorToolbar.Height);
+            window.zoom = Mathf.Max(bounds.width / viewSize.x, bounds.height / viewSize.y) * frameAllMargin;
+            window.panOffset = -bounds.center;
+        }
 
         /// Opens the node's graph, selects the node, centers the viewport on it and briefly highlights it.
         public static void FocusNode(Node node)
@@ -55,18 +111,31 @@ namespace Xprees.Graph.Core.Editor.Graph
             if (!node || !node.graph) return;
 
             var window = NodeEditorWindow.Open(node.graph);
+            if (lastTargetHash != node.graph.GetHashCode())
+            {
+                // The graph switch resets the view on the next GUI pass - focus after it
+                pendingFocusNode = node;
+                Selection.activeObject = node;
+                return;
+            }
+
+            FocusNodeInWindow(window, node);
+        }
+
+        private static void FocusNodeInWindow(NodeEditorWindow window, Node node)
+        {
             Selection.activeObject = node;
 
-            // Zoom in when the view is zoomed out too far to read the node (higher value = further out)
             if (window.zoom > maxFocusZoom) window.zoom = maxFocusZoom;
-
-            var size = window.nodeSizes.TryGetValue(node, out var cachedSize) ? cachedSize : new Vector2(200, 100);
-            window.panOffset = -(node.position + size * 0.5f);
+            window.panOffset = -(node.position + GetNodeSize(window, node) * 0.5f);
 
             highlightedNode = node;
             highlightStartTime = EditorApplication.timeSinceStartup;
             window.Repaint();
         }
+
+        private static Vector2 GetNodeSize(NodeEditorWindow window, Node node) =>
+            window.nodeSizes.TryGetValue(node, out var size) ? size : defaultNodeSize;
 
         /// Pulsing outline around the focused node, fading out after a while.
         private void DrawHighlight()
@@ -80,8 +149,7 @@ namespace Xprees.Graph.Core.Editor.Graph
                 return;
             }
 
-            var size = window.nodeSizes.TryGetValue(highlightedNode, out var cachedSize) ? cachedSize : new Vector2(200, 100);
-            var rect = window.GridToWindowRect(new Rect(highlightedNode.position, size));
+            var rect = window.GridToWindowRect(new Rect(highlightedNode.position, GetNodeSize(window, highlightedNode)));
             rect.xMin -= highlightPadding;
             rect.yMin -= highlightPadding;
             rect.xMax += highlightPadding;
@@ -99,6 +167,8 @@ namespace Xprees.Graph.Core.Editor.Graph
 
             window.Repaint(); // Keep animating until the highlight fades out
         }
+
+        #endregion
 
         /// xNode draws connections before nodes, using port positions cached by the previous repaint,
         /// and it never caches ports of nodes culled outside the view. That leaves edges invisible right after

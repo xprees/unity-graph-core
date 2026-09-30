@@ -36,6 +36,17 @@ namespace Xprees.Graph.Core.Editor.Validation
             window.Show();
         }
 
+        /// Opens the validator scoped to a single graph with its issues expanded.
+        public static void OpenFor(NodeGraph graph)
+        {
+            if (!graph) return;
+
+            var window = GetWindow<GraphValidatorWindow>("Graph Validator");
+            window.Scan(new[] { graph });
+            window._foldouts[graph] = true;
+            window.Show();
+        }
+
         private void OnEnable()
         {
             _errorIcon = EditorGUIUtility.IconContent("console.erroricon.sml");

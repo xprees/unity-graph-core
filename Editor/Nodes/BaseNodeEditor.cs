@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
+using UnityEngine;
 using XNode;
 using XNodeEditor;
 using Xprees.Graph.Core.Base.Nodes;
@@ -17,11 +18,13 @@ namespace Xprees.Graph.Core.Editor.Nodes
         public override void OnHeaderGUI()
         {
             DrawCustomIconInHeader();
+            if (Event.current.type == EventType.MouseUp) HandleHeaderDoubleClickToEnterGraph(GUILayoutUtility.GetLastRect());
         }
 
         public override void OnBodyGUI()
         {
             base.OnBodyGUI();
+            DrawEnterGraphButtons();
             HandleResizingIfAttributePresent();
         }
 
