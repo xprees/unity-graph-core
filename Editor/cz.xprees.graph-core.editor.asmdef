@@ -1,6 +1,6 @@
 {
   "name": "cz.xprees.graph-core.editor",
-  "rootNamespace": "Xprees.Graph.Core",
+  "rootNamespace": "Xprees.Graph.Core.Editor",
   "references": [
     "GUID:772b3b4db3ab4d3092811691174b84ec",
     "GUID:f88fb04354076c646a4107a491394033",
