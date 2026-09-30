@@ -11,6 +11,7 @@ namespace Xprees.Graph.Core.Base.Nodes
     /// We allow multiple async start points per graph, in contrast to StartNode, which must be exactly one.
     [NodeResizableWidth(200)]
     [NodeTint("#03a345")]
+    [AllowOnlyInGraphs(typeof(IAllowAsyncStartNodes))]
     public abstract class AsyncStartBaseNode : BaseNode, IPassthroughNode, ITraverseGraphMixin, ICancellableFlowOwner, IRuntimeStateOwner
     {
         [Output(connectionType = ConnectionType.Override)]

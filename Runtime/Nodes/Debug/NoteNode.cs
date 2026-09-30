@@ -15,6 +15,7 @@ namespace Xprees.Graph.Core.Nodes.Debug
     [NodeTint("#d1b100")]
     [NodeResizableWidth(250, 1000)]
     [CreateNodeMenu("Debug/Note")]
+    [PinnedNode(order = 2)]
     public class NoteNode : BaseNode
     {
 #if UNITY_EDITOR

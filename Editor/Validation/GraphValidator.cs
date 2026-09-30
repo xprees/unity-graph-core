@@ -4,6 +4,7 @@ using System.Reflection;
 using UnityEditor;
 using XNode;
 using Xprees.Graph.Core.Base.Nodes;
+using Xprees.Graph.Core.Editor.NodeMenu;
 using Xprees.Graph.Core.Nodes.Debug;
 
 namespace Xprees.Graph.Core.Editor.Validation
@@ -28,6 +29,12 @@ namespace Xprees.Graph.Core.Editor.Validation
                     issues.Add(new GraphIssue(GraphIssueSeverity.Error, graph, node, null,
                         $"Node belongs to a different graph ('{(node.graph ? node.graph.name : "none")}').",
                         () => SetNodeGraph(node, graph), "Set graph"));
+                }
+
+                if (!NodeTypeFilter.IsAllowed(node.GetType(), graph))
+                {
+                    issues.Add(new GraphIssue(GraphIssueSeverity.Warning, graph, node, null,
+                        $"Node type is not allowed in this graph. {NodeTypeFilter.DescribeRestriction(node.GetType(), graph.GetType())}"));
                 }
 
                 foreach (var port in node.Ports)

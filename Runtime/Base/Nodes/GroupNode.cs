@@ -3,10 +3,12 @@
 using System.Collections.Generic;
 using UnityEngine;
 using XNode;
+using Xprees.Graph.Core.Attributes;
 
 namespace Xprees.Graph.Core.Base.Nodes
 {
     [CreateNodeMenu("Group")]
+    [PinnedNode(order = 1)]
     public class NodeGroup : Node
     {
         public int width = 400;

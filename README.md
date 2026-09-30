@@ -138,6 +138,39 @@ Fixes are applied with Undo support:
 > nodes are set to `null` *in memory* (the asset on disk is fine and is not marked dirty). The next save (any edit or xNode autosave) writes the
 > damage to disk. If the validator reports many errors right after a compile error, **restart Unity without saving** and scan again.
 
+### Creating nodes (searchable tree)
+
+Right-click on empty grid space (or drop a dragged connection on empty space) opens a popup with a search field and a tree of node types grouped by
+their `[CreateNodeMenu]` path. Right-click on nodes/ports keeps xNode's regular menus.
+
+- Type to search: words match the node name, menu path and `[NodeDescription]` text (all words must match); results are listed flat with their folder.
+- Up/Down moves the selection (the search field keeps the focus, so you can keep typing), Left/Right collapse/expand folders (when the search is
+  empty), Enter creates the selected node (or toggles a folder), Esc closes. Clicking a node also creates it at the cursor (and auto-connects a
+  dragged port).
+- Node icons come from the script icon; the `[NodeDescription]` is shown as a tooltip.
+- Nodes marked with `[PinnedNode(order = n)]` (End, Group, Note) are also listed in a **Pinned** section (star icon) at the top of the empty-search
+  tree.
+- The **+** button in front of the breadcrumbs opens the same popup and creates the node in the center of the view (no auto-connect).
+- The search is always empty when the popup opens; folder expansion is remembered.
+- Node types that reached their `[DisallowMultipleNodes]` limit (e.g. Start) stay listed but greyed out with the reason and can't be created.
+- Right-clicking the body of a Group node (where no other node is) opens the same popup; the group title keeps xNode's node menu.
+
+#### Restricting nodes to graph types
+
+By default a node is available in every graph. Mark the node class to change that (graph types match their subclasses, the rules are inherited by
+derived nodes):
+
+```csharp
+[AllowOnlyInGraphs(typeof(DialogGraph))]         // offered only in DialogGraph (and subclasses)
+public class DialogNode : BaseNode { }
+
+[ExcludeFromGraphs(typeof(ScenarioSO))]          // offered everywhere except ScenarioSO
+public class SomeNode : BaseNode { }
+```
+
+`ExcludeFromGraphs` wins over `AllowOnlyInGraphs`. Disallowed types are hidden from the tree, and the Graph Validator reports nodes of a disallowed
+type already present in a graph as a warning (no auto-fix). Pasting skips nodes of disallowed types (they stay in the copy buffer for other graphs).
+
 ### xNode rendering fixes
 
 `GraphBaseEditor` works around issues of the bundled xNode version:

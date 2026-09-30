@@ -9,6 +9,7 @@ using XNode;
 using XNodeEditor;
 using Xprees.Graph.Core.Editor.Graph;
 using Xprees.Graph.Core.Editor.Navigation;
+using Xprees.Graph.Core.Editor.NodeMenu;
 using Xprees.Graph.Core.Editor.Validation;
 
 namespace Xprees.Graph.Core.Editor.Toolbar
@@ -99,6 +100,11 @@ namespace Xprees.Graph.Core.Editor.Toolbar
             toolbar.style.paddingLeft = sidePadding;
             toolbar.style.paddingRight = sidePadding;
 
+            var addButton = CreateButton("d_Toolbar Plus", null, "Create a node in the center of the view.", null);
+            addButton.clicked += () => NodeCreationPopup.ShowAtViewCenter(window, addButton.worldBound, Height);
+            addButton.style.marginRight = 6;
+            toolbar.Add(addButton);
+
             var breadcrumbs = new ToolbarBreadcrumbs { name = breadcrumbsName };
             breadcrumbs.style.flexShrink = 1;
             breadcrumbs.style.overflow = Overflow.Hidden;
@@ -131,12 +137,12 @@ namespace Xprees.Graph.Core.Editor.Toolbar
 
         private static ToolbarButton CreateButton(string iconName, string text, string tooltip, Action onClick)
         {
-            var button = new ToolbarButton(onClick) { tooltip = tooltip };
+            var button = onClick != null ? new ToolbarButton(onClick) { tooltip = tooltip } : new ToolbarButton { tooltip = tooltip };
             button.style.flexDirection = FlexDirection.Row;
             button.style.alignItems = Align.Center;
 
             if (iconName != null) button.Add(CreateIcon(iconName));
-            button.Add(new Label(text));
+            if (!string.IsNullOrEmpty(text)) button.Add(new Label(text));
             return button;
         }
 

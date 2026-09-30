@@ -1,10 +1,13 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using XNode;
 using XNodeEditor;
 using Xprees.Graph.Core.Base;
+using Xprees.Graph.Core.Base.Nodes;
 using Xprees.Graph.Core.Editor.Navigation;
+using Xprees.Graph.Core.Editor.NodeMenu;
 using Xprees.Graph.Core.Editor.Toolbar;
 
 namespace Xprees.Graph.Core.Editor.Graph
@@ -40,6 +43,8 @@ namespace Xprees.Graph.Core.Editor.Graph
             base.OnGUI();
 
             GraphEditorToolbar.EnsureAttached(window, target);
+            FilterCopyBuffer();
+            HandleGroupBodyRightClick();
 
             if (Event.current.type == EventType.Repaint)
             {
@@ -52,6 +57,87 @@ namespace Xprees.Graph.Core.Editor.Graph
             lastTargetHash = currentTargetHash;
 
             OnGraphChange();
+        }
+
+        #region Node type restrictions & group right-click
+
+        // xNode pastes from one static buffer. Keep the copied nodes and expose only the ones this graph allows,
+        // so [AllowOnlyInGraphs] / [ExcludeFromGraphs] can't be bypassed by copy & paste.
+        private static Node[] copiedNodes;
+        private static Node[] filteredBuffer;
+
+        private void FilterCopyBuffer()
+        {
+            var buffer = NodeEditorWindow.copyBuffer;
+            if (buffer == null || buffer.Length == 0) return;
+
+            if (!ReferenceEquals(buffer, filteredBuffer)) copiedNodes = buffer; // New copy made by the user
+
+            var allowed = copiedNodes.Where(node => node && NodeTypeFilter.IsAllowed(node.GetType(), target)).ToArray();
+            if (allowed.Length == copiedNodes.Length)
+            {
+                filteredBuffer = copiedNodes;
+            }
+            else
+            {
+                filteredBuffer = allowed;
+            }
+
+            NodeEditorWindow.copyBuffer = filteredBuffer;
+        }
+
+        private Vector2 _rightMouseDownPosition;
+
+        /// xNode opens no menu when right-clicking inside a node, so the body of a group (which usually contains nothing else)
+        /// offers no way to create nodes. Open the create popup there, unless the click lands on another node, a port or a title.
+        private void HandleGroupBodyRightClick()
+        {
+            var e = Event.current;
+            if (e.button != 1) return;
+
+            if (e.rawType == EventType.MouseDown)
+            {
+                _rightMouseDownPosition = e.mousePosition;
+                return;
+            }
+
+            // Right mouse drag pans the view - only a click opens the popup
+            if (e.rawType != EventType.MouseUp || (e.mousePosition - _rightMouseDownPosition).sqrMagnitude > 16f) return;
+            if (window.hoveredPort != null || !IsInsideGroupBody(e.mousePosition)) return;
+
+            NodeCreationPopup.Show(this, target, window, window.WindowToGridPosition(e.mousePosition), new Rect(e.mousePosition, Vector2.zero));
+            e.Use();
+        }
+
+        private bool IsInsideGroupBody(Vector2 windowPosition)
+        {
+            var insideGroup = false;
+            foreach (var node in target.nodes)
+            {
+                if (!node) continue;
+
+                var size = window.nodeSizes.TryGetValue(node, out var nodeSize) ? nodeSize : Vector2.zero;
+                var rect = window.GridToWindowRect(new Rect(node.position, size));
+                if (!rect.Contains(windowPosition)) continue;
+
+                if (node is not NodeGroup) return false; // Clicked a regular node
+
+                var titleHeight = 30f / window.zoom; // Same header height xNode uses for its title menu
+                if (windowPosition.y < rect.y + titleHeight) return false;
+                insideGroup = true;
+            }
+
+            return insideGroup;
+        }
+
+        #endregion
+
+        /// Right-click on the grid (and dropping a dragged connection on empty space) opens the searchable node tree
+        /// instead of xNode's flat GenericMenu. The menu itself stays empty, so nothing else pops up.
+        public override void AddContextMenuItems(GenericMenu menu)
+        {
+            var mouse = Event.current.mousePosition;
+            NodeCreationPopup.Show(this, target, window, window.WindowToGridPosition(mouse), new Rect(mouse, Vector2.zero));
         }
 
         protected virtual void OnGraphChange()
