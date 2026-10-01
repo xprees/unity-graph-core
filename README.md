@@ -113,6 +113,32 @@ Opening a graph (from the Project window or the validator) automatically fits al
   You land on the node you entered the child from, and it is highlighted. Rebind the shortcut in `Edit > Shortcuts... > Xprees/Graph`.
 - The trail survives script recompilation (kept in `SessionState`). Code access: `GraphNavigation.EnterGraph`, `NavigateTo`, `GoToParent`.
 
+### Extract to SubGraph
+
+Select nodes with a selection box (or a Group) and right-click one of the selected nodes > **Extract to SubGraph...** (shortcut `Ctrl+Alt+G`,
+rebindable under Edit > Shortcuts > Xprees/Graph). A window shows what will happen and lets you change the name and location (**Select...** opens the
+project save dialog). **Create SubGraph** then:
+
+- creates a new graph of the same type as the current one, with its own Start and End,
+- moves the selected nodes (and the nodes inside selected groups) into it - the node objects are moved, not copied, so connections between them are
+  kept,
+- replaces them with a **SubGraphNode** pointing at the new graph, connected where the selection was.
+
+Rules (the window explains any refusal):
+
+- The selection must have exactly **one entry** (one node receiving the flow from outside) and all its **exits** must continue in the same outside
+  node.
+- Start, End and async start nodes are never moved: select an async start node together with its path and the node stays in the source graph while the
+  path behind it moves (the SubGraphNode takes over its connection).
+- Graph specific nodes (`[AllowOnlyInGraphs]`, e.g. dialog nodes) can't be extracted: a SubGraphNode runs its graph with a generic parser.
+- The source graph must have no validation errors, and fields pointing at nodes that end up in the other graph are reported as warnings.
+- Undo (Ctrl+Z) restores the original graph and removes the new asset, redo creates it again. The assets are restored from file copies kept in the
+  project's `Temp` folder, which Unity clears when the project is closed - undo steps from an earlier session are not available.
+
+Suggested location: scenarios put the new graph into a `Components` folder next to the scenario (not playable on its own, the scenario's state
+registry is baked again), every other graph type next to the current graph. Games can add rules for their graph types by registering an
+`ISubGraphExtractionPolicy` (see `ScenarioSubGraphExtractionPolicy`).
+
 ### Graph Validator
 
 Menu: `Tools > Graphs > Graph Validator`. Scans all graphs in the project (**Scan Project**) or the selected ones (**Scan Selection**) for:

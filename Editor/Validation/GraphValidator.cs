@@ -53,7 +53,14 @@ namespace Xprees.Graph.Core.Editor.Validation
         public static int FixAllSafe(NodeGraph graph)
         {
             var fixable = Validate(graph).Where(issue => issue.IsSafelyFixable).ToList();
+            if (fixable.Count == 0) return 0;
+
+            // One Ctrl+Z reverts all fixes
+            Undo.IncrementCurrentGroup();
+            var undoGroup = Undo.GetCurrentGroup();
             foreach (var issue in fixable) issue.Fix();
+            Undo.SetCurrentGroupName($"Fix graph connections ({graph.name})");
+            Undo.CollapseUndoOperations(undoGroup);
             return fixable.Count;
         }
 

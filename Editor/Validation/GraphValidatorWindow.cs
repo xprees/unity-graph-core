@@ -262,7 +262,11 @@ namespace Xprees.Graph.Core.Editor.Validation
 
         private void FixAll()
         {
+            Undo.IncrementCurrentGroup();
+            var undoGroup = Undo.GetCurrentGroup();
             foreach (var graph in _scannedGraphs.Where(g => g)) GraphValidator.FixAllSafe(graph);
+            Undo.SetCurrentGroupName("Fix all safe graph issues");
+            Undo.CollapseUndoOperations(undoGroup);
             Revalidate();
             GUIUtility.ExitGUI();
         }

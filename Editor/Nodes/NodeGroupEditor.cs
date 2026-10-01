@@ -6,7 +6,9 @@ using UnityEditor;
 using UnityEngine;
 using XNode;
 using XNodeEditor;
+using XNodeEditor.Internal;
 using Xprees.Graph.Core.Base.Nodes;
+using Xprees.Graph.Core.Editor.Refactor;
 
 namespace Xprees.Graph.Core.Editor.Nodes
 {
@@ -29,6 +31,12 @@ namespace Xprees.Graph.Core.Editor.Nodes
         private bool isDragging;
         private Vector2 size;
 
+        public override void AddContextMenuItems(GenericMenu menu)
+        {
+            base.AddContextMenuItems(menu);
+            SubGraphExtraction.AddMenuItem(menu, target);
+        }
+
         public override void OnBodyGUI()
         {
             Event e = Event.current;
@@ -37,8 +45,8 @@ namespace Xprees.Graph.Core.Editor.Nodes
                 case EventType.MouseDrag:
                     if (isDragging)
                     {
-                        group.width = Mathf.Max(200, (int)e.mousePosition.x + 16);
-                        group.height = Mathf.Max(100, (int)e.mousePosition.y - 34);
+                        group.width = Mathf.Max(200, (int) e.mousePosition.x + 16);
+                        group.height = Mathf.Max(100, (int) e.mousePosition.y - 34);
                         NodeEditorWindow.current.Repaint();
                     }
 
@@ -83,10 +91,9 @@ namespace Xprees.Graph.Core.Editor.Nodes
                                             if (p.x > group.position.x + group.width) continue;
                                             if (p.y > group.position.y + group.height + 30) continue;
                                             if (NodeEditorWindow.current.selectedReroutes.Any(x =>
-                                                    x.port == port && x.connectionIndex == i && x.pointIndex == k))
-                                                continue;
+                                                    x.port == port && x.connectionIndex == i && x.pointIndex == k)) continue;
                                             NodeEditorWindow.current.selectedReroutes.Add(
-                                                new XNodeEditor.Internal.RerouteReference(port, i, k)
+                                                new RerouteReference(port, i, k)
                                             );
                                         }
                                     }

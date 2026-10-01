@@ -6,6 +6,7 @@ using UnityEngine;
 using XNode;
 using XNodeEditor;
 using Xprees.Graph.Core.Base.Nodes;
+using Xprees.Graph.Core.Editor.Refactor;
 
 namespace Xprees.Graph.Core.Editor.Nodes
 {
@@ -19,6 +20,12 @@ namespace Xprees.Graph.Core.Editor.Nodes
         {
             DrawCustomIconInHeader();
             if (Event.current.type == EventType.MouseUp) HandleHeaderDoubleClickToEnterGraph(GUILayoutUtility.GetLastRect());
+        }
+
+        public override void AddContextMenuItems(GenericMenu menu)
+        {
+            base.AddContextMenuItems(menu);
+            SubGraphExtraction.AddMenuItem(menu, target);
         }
 
         public override void OnBodyGUI()
