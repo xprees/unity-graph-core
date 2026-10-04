@@ -1,8 +1,10 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEditor;
 using XNode;
+using Xprees.Graph.Core.Attributes;
 using Xprees.Graph.Core.Base.Nodes;
 using Xprees.Graph.Core.Editor.NodeMenu;
 using Xprees.Graph.Core.Nodes.Debug;
@@ -168,7 +170,7 @@ namespace Xprees.Graph.Core.Editor.Validation
 
                 foreach (var port in node.Ports)
                 {
-                    if (IsDynamicListBackingPort(port) || HasValidConnection(port, graphNodes)) continue;
+                    if (IsDynamicListBackingPort(port) || IsOptionalPort(port) || HasValidConnection(port, graphNodes)) continue;
 
                     if (port.IsOutput && node is not EndNode)
                     {
@@ -222,6 +224,14 @@ namespace Xprees.Graph.Core.Editor.Validation
 
         private static bool HasValidConnection(NodePort port, HashSet<Node> graphNodes) =>
             PortConnectionAccessor.GetConnections(port).Any(c => IsValid(c, graphNodes, out _));
+
+        private static bool IsOptionalPort(NodePort port)
+        {
+            if (port.IsDynamic) return false;
+
+            var field = port.node.GetType().GetField(port.fieldName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            return field != null && Attribute.IsDefined(field, typeof(OptionalPortAttribute));
+        }
 
         /// xNode creates a never connected static "backing" port for fields with dynamicPortList (e.g. 'answers').
         private static bool IsDynamicListBackingPort(NodePort port)
