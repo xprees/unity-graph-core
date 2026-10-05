@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 using XNode;
@@ -137,7 +138,23 @@ namespace Xprees.Graph.Core.Editor.Graph
         public override void AddContextMenuItems(GenericMenu menu)
         {
             var mouse = Event.current.mousePosition;
+            ReleaseDraggedPort();
             NodeCreationPopup.Show(this, target, window, window.WindowToGridPosition(mouse), new Rect(mouse, Vector2.zero));
+        }
+
+        private readonly static FieldInfo draggedOutputField =
+            typeof(NodeEditorWindow).GetField("draggedOutput", BindingFlags.Instance | BindingFlags.NonPublic);
+
+        private readonly static FieldInfo draggedOutputTargetField =
+            typeof(NodeEditorWindow).GetField("draggedOutputTarget", BindingFlags.Instance | BindingFlags.NonPublic);
+
+        /// xNode clears its dragged connection only after AddContextMenuItems returns. The popup opening inside it interrupts the
+        /// mouse-up handling (the window loses focus), so the connection kept following the mouse after the node was created.
+        /// The auto-connect source is a separate field and stays intact.
+        private void ReleaseDraggedPort()
+        {
+            draggedOutputField?.SetValue(window, null);
+            draggedOutputTargetField?.SetValue(window, null);
         }
 
         protected virtual void OnGraphChange()

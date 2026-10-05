@@ -20,6 +20,9 @@ namespace Xprees.Graph.Core.Editor.NodeMenu
         /// Position in the Pinned section, null when the node is not pinned.
         public int? pinnedOrder;
 
+        /// Node is restricted to the current graph type - listed in the featured section on top instead of its own folder.
+        public bool graphSpecific;
+
         /// Why the node can't be created right now (e.g. [DisallowMultipleNodes] limit reached). Null when it can be.
         public string disabledReason;
 
@@ -37,6 +40,7 @@ namespace Xprees.Graph.Core.Editor.NodeMenu
         private const float leafTitleHeight = 17f;
         private const float leafDescriptionHeight = 14f;
         private const string pinnedFolderKey = "pinned:/";
+        private const string featuredFolderKey = "featured:/";
 
         private readonly static Color separatorColor = new(0.5f, 0.5f, 0.5f, 0.25f);
         private readonly static Color folderBackgroundColor = new(0.5f, 0.5f, 0.5f, 0.08f);
@@ -45,14 +49,16 @@ namespace Xprees.Graph.Core.Editor.NodeMenu
         private static GUIStyle descriptionStyle;
 
         private readonly List<NodeMenuEntry> _entries;
+        private readonly string _featuredLabel;
         private readonly Dictionary<int, NodeMenuEntry> _entryById = new();
         private readonly HashSet<int> _pinnedIds = new(); // Second listing of pinned nodes - not part of search results
 
         public event Action<NodeMenuEntry> OnEntryChosen;
 
-        public NodeTreeView(TreeViewState<int> state, List<NodeMenuEntry> entries) : base(state)
+        public NodeTreeView(TreeViewState<int> state, List<NodeMenuEntry> entries, string featuredLabel = "Featured") : base(state)
         {
             _entries = entries;
+            _featuredLabel = featuredLabel;
             rowHeight = leafRowHeight;
             showAlternatingRowBackgrounds = false;
             showBorder = false;
@@ -125,11 +131,13 @@ namespace Xprees.Graph.Core.Editor.NodeMenu
             return -1;
         }
 
-        /// Selects the first leaf, so Enter creates the top search result.
+        /// Selects the first leaf, so Enter creates the top search result, and scrolls to the top.
+        /// Not framing the selection keeps the first folder header visible; the shared state would otherwise keep the previous scroll.
         public void SelectFirstLeaf()
         {
             var first = GetRows().FirstOrDefault(row => _entryById.TryGetValue(row.id, out var entry) && entry.IsEnabled);
-            if (first != null) SetSelection(new List<int> { first.id }, TreeViewSelectionOptions.RevealAndFrame);
+            if (first != null) SetSelection(new List<int> { first.id });
+            state.scrollPos = Vector2.zero;
         }
 
         #region Tree building
@@ -148,7 +156,7 @@ namespace Xprees.Graph.Core.Editor.NodeMenu
             {
                 pinnedFolder = new TreeViewItem<int>(UniqueId(pinnedFolderKey, usedIds), 0, "Pinned")
                 {
-                    icon = EditorGUIUtility.IconContent("d_Favorite").image as Texture2D,
+                    icon = EditorGUIUtility.IconContent("Pinned").image as Texture2D,
                 };
                 root.AddChild(pinnedFolder);
                 foreach (var entry in pinned)
@@ -160,7 +168,28 @@ namespace Xprees.Graph.Core.Editor.NodeMenu
                 }
             }
 
-            foreach (var entry in _entries.OrderBy(e => e.order).ThenBy(e => e.path, StringComparer.OrdinalIgnoreCase))
+            // Graph specific nodes are moved here (pinned ones stay in Pinned and in their folder). Unlike Pinned, they are searchable and,
+            // being first in the tree, rank first in the flat search results.
+            var featured = _entries.Where(e => e.graphSpecific && !e.pinnedOrder.HasValue)
+                .OrderBy(e => e.order).ThenBy(e => e.name, StringComparer.OrdinalIgnoreCase).ToList();
+            TreeViewItem<int> featuredFolder = null;
+            if (featured.Count > 0)
+            {
+                featuredFolder = new TreeViewItem<int>(UniqueId(featuredFolderKey, usedIds), 0, _featuredLabel)
+                {
+                    icon = EditorGUIUtility.IconContent("d_Favorite").image as Texture2D,
+                };
+                root.AddChild(featuredFolder);
+                foreach (var entry in featured)
+                {
+                    var leaf = new TreeViewItem<int>(UniqueId(featuredFolderKey + entry.path, usedIds), 1, entry.name);
+                    _entryById[leaf.id] = entry;
+                    featuredFolder.AddChild(leaf);
+                }
+            }
+
+            foreach (var entry in _entries.Where(e => !featured.Contains(e)).OrderBy(e => e.order)
+                         .ThenBy(e => e.path, StringComparer.OrdinalIgnoreCase))
             {
                 var segments = entry.path.Split('/');
                 var parent = root;
@@ -189,6 +218,12 @@ namespace Xprees.Graph.Core.Editor.NodeMenu
             {
                 root.children.Remove(pinnedFolder);
                 root.children.Insert(0, pinnedFolder);
+            }
+
+            if (featuredFolder != null)
+            {
+                root.children.Remove(featuredFolder);
+                root.children.Insert(0, featuredFolder);
             }
 
             SetupDepthsFromParentsAndChildren(root);

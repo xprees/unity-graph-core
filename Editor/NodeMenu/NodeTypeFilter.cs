@@ -20,6 +20,13 @@ namespace Xprees.Graph.Core.Editor.NodeMenu
             return allowOnly == null || Matches(allowOnly.graphTypes, graphType);
         }
 
+        /// True when the node is restricted by <see cref="AllowOnlyInGraphsAttribute"/> to a graph type matching <paramref name="graphType"/>.
+        public static bool IsSpecificTo(Type nodeType, Type graphType)
+        {
+            var allowOnly = (AllowOnlyInGraphsAttribute) Attribute.GetCustomAttribute(nodeType, typeof(AllowOnlyInGraphsAttribute), true);
+            return allowOnly != null && Matches(allowOnly.graphTypes, graphType);
+        }
+
         /// Human readable reason for the validator.
         public static string DescribeRestriction(Type nodeType, Type graphType)
         {

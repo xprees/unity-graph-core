@@ -34,11 +34,11 @@ namespace Xprees.Graph.Core.Editor.NodeMenu
         private string _search = "";
         private bool _focusRequested = true;
 
-        private NodeCreationPopup(List<NodeMenuEntry> entries, Action<Type> onCreate)
+        private NodeCreationPopup(List<NodeMenuEntry> entries, Type graphType, Action<Type> onCreate)
         {
             _onCreate = onCreate;
             sharedTreeState.searchString = ""; // The shared state would otherwise restore the previous search results without the text
-            _tree = new NodeTreeView(sharedTreeState, entries);
+            _tree = new NodeTreeView(sharedTreeState, entries, GetFeaturedLabel(graphType));
             _tree.OnEntryChosen += entry => Choose(entry.type);
         }
 
@@ -54,7 +54,7 @@ namespace Xprees.Graph.Core.Editor.NodeMenu
         )
         {
             var entries = BuildEntries(graphEditor, graph);
-            var popup = new NodeCreationPopup(entries, type =>
+            var popup = new NodeCreationPopup(entries, graph.GetType(), type =>
             {
                 var node = graphEditor.CreateNode(type, gridPosition);
                 if (autoConnect) window.AutoConnect(node);
@@ -180,12 +180,21 @@ namespace Xprees.Graph.Core.Editor.NodeMenu
                     description = description,
                     order = graphEditor.GetNodeMenuOrder(type),
                     pinnedOrder = GetPinnedOrder(type),
+                    graphSpecific = NodeTypeFilter.IsSpecificTo(type, graph.GetType()),
                     disabledReason = disabledReason,
                     icon = GetIcon(type),
                 });
             }
 
             return entries;
+        }
+
+        /// "ScenarioGraph" -> "Scenario" (graph type name without the Graph suffix, nicified).
+        private static string GetFeaturedLabel(Type graphType)
+        {
+            var name = graphType.Name;
+            if (name.Length > "Graph".Length && name.EndsWith("Graph", StringComparison.Ordinal)) name = name[..^"Graph".Length];
+            return ObjectNames.NicifyVariableName(name);
         }
 
         private readonly static Dictionary<Assembly, bool> testAssemblyCache = new();
