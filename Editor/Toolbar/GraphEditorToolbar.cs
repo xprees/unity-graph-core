@@ -171,7 +171,9 @@ namespace Xprees.Graph.Core.Editor.Toolbar
             {
                 var index = i;
                 var isCurrent = i == chain.Count - 1;
-                breadcrumbs.PushItem(chain[i].graph.name, isCurrent ? null : () => GraphNavigation.NavigateTo(index));
+                var graph = chain[i].graph;
+                breadcrumbs.PushItem(graph.name,
+                    isCurrent ? () => EditorGUIUtility.PingObject(graph) : () => GraphNavigation.NavigateTo(index));
             }
         }
 
