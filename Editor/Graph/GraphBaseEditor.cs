@@ -43,12 +43,6 @@ namespace Xprees.Graph.Core.Editor.Graph
         /// Ports we already requested a repaint for. Ports never drawn by their node editor would otherwise repaint forever.
         private readonly HashSet<NodePort> _seededPorts = new();
 
-        public override void OnCreate()
-        {
-            base.OnCreate();
-            GuardedNodeEditors.EnsureInstalled();
-        }
-
         public override void OnGUI()
         {
             using (GraphDebugMarkers.OnGui.Auto()) OnGuiInternal();

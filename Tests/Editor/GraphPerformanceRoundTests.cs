@@ -1,83 +1,9 @@
-using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
 using Xprees.Graph.Core.Editor.Graph;
-using Xprees.Graph.Core.Editor.Nodes;
 
 namespace Xprees.Graph.Core.Tests
 {
-    public class NodeOrderGuardTests
-    {
-        private sealed class Item
-        {
-            public readonly string Name;
-            public Item(string name) => Name = name;
-        }
-
-        private static string Names(List<Item> list) => string.Join(",", list.ConvertAll(i => i.Name));
-
-        [Test]
-        public void GroupMovedToFront_IsPutBack_OthersKeepOrder()
-        {
-            var a = new Item("a");
-            var b = new Item("b");
-            var c = new Item("c");
-            var list = new List<Item> { a, b, c };
-
-            // What the xNodeGroups editor does on Repaint
-            list.Remove(b);
-            list.Insert(0, b);
-
-            Assert.IsTrue(NodeOrderGuard.RestoreIndex(list, b, 1));
-            Assert.AreEqual("a,b,c", Names(list));
-        }
-
-        [Test]
-        public void NothingMoved_NothingChanges()
-        {
-            var a = new Item("a");
-            var b = new Item("b");
-            var list = new List<Item> { a, b };
-
-            Assert.IsFalse(NodeOrderGuard.RestoreIndex(list, b, 1));
-            Assert.AreEqual("a,b", Names(list));
-        }
-
-        [Test]
-        public void InvalidIndexOrMissingItem_IsIgnored()
-        {
-            var a = new Item("a");
-            var list = new List<Item> { a };
-
-            Assert.IsFalse(NodeOrderGuard.RestoreIndex(list, a, -1));
-            Assert.IsFalse(NodeOrderGuard.RestoreIndex(list, a, 5));
-            Assert.IsFalse(NodeOrderGuard.RestoreIndex(list, new Item("x"), 0));
-        }
-
-        [Test]
-        public void RepeatedRepaints_WithManyGroups_NeverRotateTheList()
-        {
-            var items = new List<Item>();
-            for (var i = 0; i < 12; i++) items.Add(new Item("g" + i));
-            items.Add(new Item("n"));
-            var before = Names(items);
-
-            for (var repaint = 0; repaint < 50; repaint++)
-            {
-                for (var k = 0; k < 12; k++)
-                {
-                    var group = items[k];
-                    var index = items.IndexOf(group);
-                    items.Remove(group);
-                    items.Insert(0, group);
-                    NodeOrderGuard.RestoreIndex(items, group, index);
-                }
-            }
-
-            Assert.AreEqual(before, Names(items));
-        }
-    }
-
     public class NoodleCullingTests
     {
         private static readonly Rect View = new(0, 0, 1000, 600);
