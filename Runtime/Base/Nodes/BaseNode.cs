@@ -2,6 +2,7 @@
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using XNode;
+using Xprees.Graph.Core.Debugging;
 
 namespace Xprees.Graph.Core.Base.Nodes
 {
@@ -24,10 +25,30 @@ namespace Xprees.Graph.Core.Base.Nodes
         {
             if (!IsActive) return null; // Node is not active, do not trigger it and don't move to next node.
 
-            var next = await GetNextNode(cancellationToken);
-            if (next) await next.Trigger(cancellationToken);
+            var next = await ResolveNextInternal(cancellationToken);
+            if (next) await next.TriggerInternal(cancellationToken);
 
             return next;
+        }
+
+        /// Resolves the next node, keeps the active graph guard of <see cref="MoveNext"/>. Lets the parser observe the steps of MoveNext separately.
+        internal UniTask<BaseNode> ResolveNextInternal(CancellationToken cancellationToken)
+        {
+            if (!IsActive) return UniTask.FromResult<BaseNode>(null);
+
+#if UNITY_EDITOR
+            GraphDebugHooks.ClearPendingPort(this); // look-ahead callers leave stale reports behind
+#endif
+            return GetNextNode(cancellationToken);
+        }
+
+        internal UniTask TriggerInternal(CancellationToken cancellationToken) => Trigger(cancellationToken);
+
+        /// Returns the node connected to the port and reports the port to the graph debugger. Use it in GetNextNode of branching nodes.
+        protected BaseNode FollowPort(NodePort port)
+        {
+            GraphDebugHooks.ReportPort(this, port);
+            return port?.Connection?.node as BaseNode;
         }
 
         public override object GetValue(NodePort port) => null; // xNode needs this to be implemented.

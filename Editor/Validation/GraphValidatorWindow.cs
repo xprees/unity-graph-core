@@ -23,11 +23,13 @@ namespace Xprees.Graph.Core.Editor.Validation
         private Vector2 _scrollPos;
         private bool _showErrors = true;
         private bool _showWarnings = true;
+        private bool _showTodos = true;
         private bool _hideValidGraphs = true;
         private string _searchFilter = "";
 
         private GUIContent _errorIcon;
         private GUIContent _warningIcon;
+        private GUIContent _infoIcon;
 
         [MenuItem("Window/Graph/Validator", priority = 100)]
         public static void Open()
@@ -51,6 +53,7 @@ namespace Xprees.Graph.Core.Editor.Validation
         {
             _errorIcon = EditorGUIUtility.IconContent("console.erroricon.sml");
             _warningIcon = EditorGUIUtility.IconContent("console.warnicon.sml");
+            _infoIcon = EditorGUIUtility.IconContent("console.infoicon.sml");
         }
 
         // Graphs could be edited in the node editor in the meantime
@@ -142,6 +145,7 @@ namespace Xprees.Graph.Core.Editor.Validation
             GUILayout.Space(8);
             _showErrors = GUILayout.Toggle(_showErrors, "Errors", EditorStyles.toolbarButton, GUILayout.Width(55));
             _showWarnings = GUILayout.Toggle(_showWarnings, "Warnings", EditorStyles.toolbarButton, GUILayout.Width(70));
+            _showTodos = GUILayout.Toggle(_showTodos, "Show TODOs", EditorStyles.toolbarButton, GUILayout.Width(85));
             _hideValidGraphs = GUILayout.Toggle(_hideValidGraphs, "Hide valid", EditorStyles.toolbarButton, GUILayout.Width(75));
 
             GUILayout.FlexibleSpace();
@@ -163,27 +167,31 @@ namespace Xprees.Graph.Core.Editor.Validation
         {
             var errors = _issues.Values.Sum(list => list.Count(i => i.Severity == GraphIssueSeverity.Error));
             var warnings = _issues.Values.Sum(list => list.Count(i => i.Severity == GraphIssueSeverity.Warning));
-            var invalidGraphs = _issues.Count(kvp => kvp.Value.Count > 0);
+            var todos = _issues.Values.Sum(list => list.Count(i => i.Severity == GraphIssueSeverity.Todo));
+            var invalidGraphs = _issues.Count(kvp => kvp.Value.Any(i => i.IsProblem));
 
             EditorGUILayout.LabelField(
-                $"Scanned {_scannedGraphs.Count} graph(s) - {invalidGraphs} with issues, {errors} error(s), {warnings} warning(s)",
+                $"Scanned {_scannedGraphs.Count} graph(s) - {invalidGraphs} with issues, {errors} error(s), {warnings} warning(s), {todos} TODO(s)",
                 EditorStyles.boldLabel);
         }
 
         private void DrawGraph(NodeGraph graph)
         {
             var allIssues = _issues.TryGetValue(graph, out var list) ? list : new List<GraphIssue>();
-            if (_hideValidGraphs && allIssues.Count <= 0) return;
+            if (_hideValidGraphs && !allIssues.Any(i => i.IsProblem || _showTodos)) return;
 
             var visible = allIssues.Where(IsVisible).ToList();
             if (_hideValidGraphs && visible.Count <= 0 && !string.IsNullOrEmpty(_searchFilter)) return;
 
             var errors = allIssues.Count(i => i.Severity == GraphIssueSeverity.Error);
-            var warnings = allIssues.Count - errors;
+            var warnings = allIssues.Count(i => i.Severity == GraphIssueSeverity.Warning);
+            var todos = allIssues.Count(i => i.Severity == GraphIssueSeverity.Todo);
 
             EditorGUILayout.BeginHorizontal();
             _foldouts.TryGetValue(graph, out var expanded);
-            var label = allIssues.Count <= 0 ? $"{graph.name} - OK" : $"{graph.name} - {errors} error(s), {warnings} warning(s)";
+            var label = allIssues.Count <= 0
+                ? $"{graph.name} - OK"
+                : $"{graph.name} - {errors} error(s), {warnings} warning(s), {todos} TODO(s)";
             _foldouts[graph] = EditorGUILayout.Foldout(expanded, label, true);
 
             if (GUILayout.Button("Ping", GUILayout.Width(buttonWidth))) EditorGUIUtility.PingObject(graph);
@@ -217,7 +225,12 @@ namespace Xprees.Graph.Core.Editor.Validation
         {
             EditorGUILayout.BeginHorizontal();
 
-            var icon = issue.Severity == GraphIssueSeverity.Error ? _errorIcon : _warningIcon;
+            var icon = issue.Severity switch
+            {
+                GraphIssueSeverity.Error => _errorIcon,
+                GraphIssueSeverity.Todo => _infoIcon,
+                _ => _warningIcon,
+            };
             GUILayout.Space(EditorGUI.indentLevel * 15f);
             GUILayout.Label(icon, GUILayout.Width(18), GUILayout.Height(18));
 
@@ -251,6 +264,7 @@ namespace Xprees.Graph.Core.Editor.Validation
         {
             if (issue.Severity == GraphIssueSeverity.Error && !_showErrors) return false;
             if (issue.Severity == GraphIssueSeverity.Warning && !_showWarnings) return false;
+            if (issue.Severity == GraphIssueSeverity.Todo && !_showTodos) return false;
             if (string.IsNullOrEmpty(_searchFilter)) return true;
 
             return issue.Message.IndexOf(_searchFilter, StringComparison.OrdinalIgnoreCase) >= 0

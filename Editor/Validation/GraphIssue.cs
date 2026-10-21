@@ -7,6 +7,9 @@ namespace Xprees.Graph.Core.Editor.Validation
     {
         Error,
         Warning,
+
+        /// Informational marker (TODO/FIXME/HACK left by an author). Not a problem.
+        Todo,
     }
 
     /// Single problem found in a graph by the <see cref="GraphValidator"/>.
@@ -29,6 +32,9 @@ namespace Xprees.Graph.Core.Editor.Validation
         /// Safe fixes don't change runtime flow and are applied by "Fix All Safe".
         /// Unsafe fixes (e.g. restoring a lost edge) must be reviewed and applied one by one.
         public bool IsSafeFix { get; }
+
+        /// Error or warning. Todo issues are informational and never count as problems.
+        public bool IsProblem => Severity is GraphIssueSeverity.Error or GraphIssueSeverity.Warning;
 
         public bool IsFixable => Fix != null;
         public bool IsSafelyFixable => IsFixable && IsSafeFix;

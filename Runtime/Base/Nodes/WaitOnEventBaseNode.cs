@@ -11,7 +11,7 @@ namespace Xprees.Graph.Core.Base.Nodes
 {
     [NodeTint("#68427B")]
     [NodeResizableWidth(300)]
-    public abstract class WaitOnEventBaseNode : WaitBaseNode, IRuntimeStateOwner
+    public abstract partial class WaitOnEventBaseNode : WaitBaseNode, IRuntimeStateOwner
     {
         [Header("Settings")]
         [Tooltip("If true, the node will accept events. If false, the node will ignore events.")]
@@ -73,7 +73,7 @@ namespace Xprees.Graph.Core.Base.Nodes
 
     }
 
-    public abstract class WaitOnEventBaseNode<T> : WaitOnEventBaseNode
+    public abstract partial class WaitOnEventBaseNode<T> : WaitOnEventBaseNode
     {
         [Header("Listens to")]
         public EventChannelBaseSO<T> eventChannel;
@@ -105,7 +105,7 @@ namespace Xprees.Graph.Core.Base.Nodes
         }
     }
 
-    public abstract class WaitOnEventBaseNode<T1, T2> : WaitOnEventBaseNode
+    public abstract partial class WaitOnEventBaseNode<T1, T2> : WaitOnEventBaseNode
     {
         [Header("Listens to")]
         public EventChannelBaseSO<T1, T2> eventChannel;
@@ -137,7 +137,7 @@ namespace Xprees.Graph.Core.Base.Nodes
         }
     }
 
-    public abstract class WaitOnEventBaseNode<T1, T2, T3> : WaitOnEventBaseNode
+    public abstract partial class WaitOnEventBaseNode<T1, T2, T3> : WaitOnEventBaseNode
     {
         [Header("Listens to")]
         public EventChannelBaseSO<T1, T2, T3> eventChannel;

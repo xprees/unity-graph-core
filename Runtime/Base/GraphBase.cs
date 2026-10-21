@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using XNode;
 using Xprees.Core;
 using Xprees.Graph.Core.Base.Nodes;
+using Xprees.Graph.Core.Debugging;
 
 namespace Xprees.Graph.Core.Base
 {
@@ -52,7 +53,13 @@ namespace Xprees.Graph.Core.Base
         }
 
         /// Clears all transient in-flight parser sessions from this graph.
-        public virtual void ClearTransientState() => _activeParsers.Clear();
+        public virtual void ClearTransientState()
+        {
+            _activeParsers.Clear();
+#if UNITY_EDITOR
+            GraphDebugHooks.Observer?.OnGraphCleared(this);
+#endif
+        }
 
         /// Cancels every asynchronous flow still in flight in this graph and its sub-graphs.
         /// Async start nodes run their own parser, so stopping the main parser does not stop them.

@@ -4,7 +4,7 @@ using Xprees.Variables.Primitive;
 namespace Xprees.Graph.Core.Nodes.Branch
 {
     [CreateNodeMenu("Branch/VariableBranch")]
-    public class VariableBranchNode : BranchBaseNode
+    public partial class VariableBranchNode : BranchBaseNode
     {
         public BoolVariable boolVariable;
 

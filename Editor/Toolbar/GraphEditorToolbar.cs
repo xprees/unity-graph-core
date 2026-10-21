@@ -8,6 +8,7 @@ using UnityEngine.UIElements;
 using XNode;
 using XNodeEditor;
 using Xprees.Graph.Core.Editor.Graph;
+using Xprees.Graph.Core.Editor.Minimap;
 using Xprees.Graph.Core.Editor.Navigation;
 using Xprees.Graph.Core.Editor.NodeMenu;
 using Xprees.Graph.Core.Editor.Validation;
@@ -16,7 +17,7 @@ namespace Xprees.Graph.Core.Editor.Toolbar
 {
     /// UI Toolkit toolbar injected on top of the xNode editor window (xNode is IMGUI only and has no toolbar).
     /// UI Toolkit elements receive clicks before xNode's IMGUI, so toolbar clicks don't leak into the graph.
-    public static class GraphEditorToolbar
+    public static partial class GraphEditorToolbar
     {
         public const float Height = 21f;
 
@@ -31,6 +32,8 @@ namespace Xprees.Graph.Core.Editor.Toolbar
         private const string breadcrumbsName = "xprees-graph-breadcrumbs";
         private const string badgeName = "xprees-graph-validation-badge";
         private const string badgeIconName = "xprees-graph-validation-icon";
+        private const string todoButtonName = "xprees-graph-todo-button";
+        private const string todoLabelName = "xprees-graph-todo-label";
         private const long badgeRefreshIntervalMs = 1000;
 
         private readonly static float tabHeight = GetTabHeight();
@@ -112,20 +115,61 @@ namespace Xprees.Graph.Core.Editor.Toolbar
 
             toolbar.Add(new ToolbarSpacer { style = { flexGrow = 1 } });
 
-            toolbar.Add(CreateButton("d_ViewToolZoom", "Frame All", "Center the view on all nodes and fit them into the window.",
-                () => GraphBaseEditor.FrameAll(window)));
+            toolbar.Add(CreateDebugGroup(window));
+            toolbar.Add(CreateSeparator());
 
-            var validateButton = CreateButton(null, "Validate", "Validate this graph - opens the Graph Validator scoped to it.",
+            var mapToggle = GraphMinimap.CreateToolbarToggle(window);
+            if (DebugIcons.Decorate(mapToggle, "Grid.Default", "UnityEditor.SceneHierarchyWindow")) MarkCollapsibleText(mapToggle);
+            toolbar.Add(mapToggle);
+            toolbar.Add(GraphLod.CreateToolbarToggle());
+
+            var frameAll = CreateButton("d_ViewToolZoom", "Frame All", "Center the view on all nodes and fit them into the window.",
+                () => GraphBaseEditor.FrameAll(window));
+            MarkCollapsibleText(frameAll);
+            toolbar.Add(frameAll);
+
+            var validateButton = CreateButton(null, "Validate",
+                "Validate this graph: checks broken connections, unreachable nodes and dead ends. The badge shows the error/warning count; TODO notes are listed separately. Click to open the Graph Validator on this graph.",
                 () => GraphValidatorWindow.OpenFor(window.graph));
             validateButton.Insert(0, CreateIcon(null, badgeIconName));
+            MarkCollapsibleText(validateButton);
             validateButton.Add(new Label { name = badgeName, style = { marginLeft = 4, unityFontStyleAndWeight = FontStyle.Bold } });
             toolbar.Add(validateButton);
 
-            toolbar.Add(CreateButton("d_UnityEditor.ConsoleWindow", "Validator", "Open the Graph Validator window.",
-                GraphValidatorWindow.Open));
+            var todoIndex = -1;
+            var todoButton = CreateButton("console.infoicon.sml", null, "Focus the next TODO note of this graph.", () =>
+            {
+                var todos = GraphValidator.Validate(window.graph).Where(i => i.Severity == GraphIssueSeverity.Todo && i.Node).ToList();
+                if (todos.Count <= 0) return;
+
+                todoIndex = (todoIndex + 1) % todos.Count;
+                GraphBaseEditor.FocusNode(todos[todoIndex].Node);
+            });
+            todoButton.name = todoButtonName;
+            todoButton.Add(new Label { name = todoLabelName });
+            todoButton.style.display = DisplayStyle.None;
+            toolbar.Add(todoButton);
+
+            var validatorButton = CreateButton("d_UnityEditor.ConsoleWindow", "Validator", "Open the Graph Validator window.",
+                GraphValidatorWindow.Open);
+            MarkCollapsibleText(validatorButton);
+            toolbar.Add(validatorButton);
+
+            // Icon-only mode for narrow windows so nothing overflows or wraps
+            var narrow = false;
+            toolbar.RegisterCallback<GeometryChangedEvent>(evt =>
+            {
+                var next = ToolbarLogic.IsNarrow(evt.newRect.width, narrow);
+                if (next == narrow) return;
+
+                narrow = next;
+                ApplyNarrowMode(toolbar, narrow);
+            });
 
             // Keep the badge up to date while the graph is being edited
             toolbar.schedule.Execute(() => RefreshBadge(toolbar, window ? window.graph : null)).Every(badgeRefreshIntervalMs);
+
+            ScheduleDebugRefresh(toolbar, window);
 
             // Breadcrumbs change on navigation from any window
             void OnChainChanged() => RefreshBreadcrumbs(toolbar);
@@ -181,18 +225,27 @@ namespace Xprees.Graph.Core.Editor.Toolbar
         {
             var badge = toolbar.Q<Label>(badgeName);
             var badgeIcon = toolbar.Q<Image>(badgeIconName);
+            var todoButton = toolbar.Q(todoButtonName);
             if (badge == null) return;
 
             if (!graph || EditorApplication.isCompiling)
             {
                 badge.text = string.Empty;
                 if (badgeIcon != null) badgeIcon.image = null;
+                if (todoButton != null) todoButton.style.display = DisplayStyle.None;
                 return;
             }
 
             var issues = GraphValidator.Validate(graph);
             var errors = issues.Count(i => i.Severity == GraphIssueSeverity.Error);
-            var warnings = issues.Count - errors;
+            var warnings = issues.Count(i => i.Severity == GraphIssueSeverity.Warning);
+            var todos = issues.Count(i => i.Severity == GraphIssueSeverity.Todo);
+
+            if (todoButton != null)
+            {
+                todoButton.style.display = todos > 0 ? DisplayStyle.Flex : DisplayStyle.None;
+                todoButton.Q<Label>(todoLabelName).text = $"{todos} TODO";
+            }
 
             badge.text = errors > 0 ? $"{errors} errors" : warnings > 0 ? $"{warnings} warnings" : "OK";
             badge.style.color = errors > 0 ? new Color(1f, 0.4f, 0.4f) : warnings > 0 ? new Color(1f, 0.8f, 0.3f) : new Color(0.5f, 0.9f, 0.5f);

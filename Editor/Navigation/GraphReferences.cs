@@ -26,6 +26,9 @@ namespace Xprees.Graph.Core.Editor.Navigation
             }
         }
 
+        /// False when the node type has no graph fields at all (the common case), so per-paint callers can skip the iterator.
+        public static bool MayReferenceGraphs(Node node) => node && GetGraphFields(node.GetType()).Length > 0;
+
         /// First node of the parent graph referencing the child graph. Null if the parent doesn't reference it.
         public static Node FindReferencingNode(NodeGraph parent, NodeGraph child)
         {

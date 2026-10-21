@@ -14,7 +14,7 @@ namespace Xprees.Graph.Core.Base.Nodes
 
         protected override UniTask<BaseNode> GetNextNode(CancellationToken cancellationToken = default)
         {
-            var connectionNode = GetOutputPort(nameof(output))?.Connection?.node as BaseNode;
+            var connectionNode = FollowPort(GetOutputPort(nameof(output)));
 #if UNITY_EDITOR
             if (connectionNode == null)
             {

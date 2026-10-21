@@ -18,7 +18,7 @@ namespace Xprees.Graph.Core.Base.Nodes
         protected override UniTask<BaseNode> GetNextNode(CancellationToken cancellationToken = default)
         {
             var port = GetOutputPort(GetConditionResult() ? nameof(pass) : nameof(fail));
-            return new UniTask<BaseNode>(port.Connection?.node as BaseNode);
+            return new UniTask<BaseNode>(FollowPort(port));
         }
 
         protected abstract bool GetConditionResult();

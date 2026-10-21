@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using UnityEditor;
 using XNode;
 using Xprees.Graph.Core.Attributes;
@@ -15,6 +16,8 @@ namespace Xprees.Graph.Core.Editor.Validation
     /// safe fixes are provided as <see cref="GraphIssue.Fix"/> actions (with Undo support).
     public static class GraphValidator
     {
+        private readonly static Regex todoMarker = new(@"\b(TODO|FIXME|HACK)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
         public static List<GraphIssue> Validate(NodeGraph graph)
         {
             var issues = new List<GraphIssue>();
@@ -47,6 +50,7 @@ namespace Xprees.Graph.Core.Editor.Validation
 
             var unreachable = CheckUnreachable(graph, graphNodes, issues);
             CheckDeadEnds(graph, graphNodes, unreachable, issues);
+            CheckTodos(graph, graphNodes, issues);
 
             return issues;
         }
@@ -184,6 +188,30 @@ namespace Xprees.Graph.Core.Editor.Validation
                     }
                 }
             }
+        }
+
+        /// TODO/FIXME/HACK markers in note text, node names and group titles. Informational only, never fixable.
+        private static void CheckTodos(NodeGraph graph, HashSet<Node> graphNodes, List<GraphIssue> issues)
+        {
+            foreach (var node in graphNodes)
+            {
+                var message = node is NoteNode note && TryFindTodoLine(note.text, out var noteLine) ? noteLine
+                    : TryFindTodoLine(node.name, out var nameLine) ? nameLine
+                    : null;
+                if (message == null) continue;
+
+                issues.Add(new GraphIssue(GraphIssueSeverity.Todo, graph, node, null, message));
+            }
+        }
+
+        /// Returns the first line of the text when it contains a marker at a word boundary.
+        private static bool TryFindTodoLine(string text, out string line)
+        {
+            line = null;
+            if (string.IsNullOrWhiteSpace(text) || !todoMarker.IsMatch(text)) return false;
+
+            line = text.Trim().Split('\n')[0].Trim();
+            return true;
         }
 
         #endregion

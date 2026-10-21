@@ -50,11 +50,16 @@ namespace Xprees.Graph.Core.Editor.Navigation
         {
             if (!child) return;
 
-            var current = Chain;
+            SetChain(BuildEnterChain(Chain, fromNode, child));
+            NodeEditorWindow.Open(child);
+        }
+
+        /// Pure: the chain after entering the child from a node. Kept only when entering from its tail, otherwise the parent becomes a new root.
+        internal static List<Crumb> BuildEnterChain(IReadOnlyList<Crumb> current, Node fromNode, NodeGraph child)
+        {
             var parent = fromNode ? fromNode.graph : null;
             var list = current.ToList();
 
-            // Keep the chain only if we are entering from its tail, otherwise the parent becomes a new root
             if (list.Count <= 0 || list[^1].graph != parent)
             {
                 list.Clear();
@@ -62,9 +67,53 @@ namespace Xprees.Graph.Core.Editor.Navigation
             }
 
             list.Add(new Crumb(child, fromNode));
-            SetChain(list);
+            return list;
+        }
 
-            NodeEditorWindow.Open(child);
+        public enum ShowKind
+        {
+            /// The graph is already the current crumb (or there is no chain yet): nothing to change.
+            InPlace,
+
+            /// The graph is an ancestor in the trail: cut the trail back to it.
+            GoBack,
+
+            /// The graph is not in the trail: push it on top, so Back returns.
+            Push,
+        }
+
+        /// Pure: how the breadcrumbs react when something (Follow, a breakpoint hit, history click) shows a node of this graph.
+        public static ShowKind PlanShow(IReadOnlyList<Crumb> current, NodeGraph graph, out int index)
+        {
+            index = -1;
+            if (current.Count == 0) return ShowKind.InPlace;
+
+            for (var i = 0; i < current.Count; i++)
+            {
+                if (current[i].graph != graph) continue;
+
+                index = i;
+                return i == current.Count - 1 ? ShowKind.InPlace : ShowKind.GoBack;
+            }
+
+            return ShowKind.Push;
+        }
+
+        /// Pure: the chain with the graph pushed on top (a graph that is not part of the trail yet).
+        internal static List<Crumb> BuildPushChain(IReadOnlyList<Crumb> current, NodeGraph graph, Node enteredFrom)
+        {
+            var list = current.ToList();
+            list.Add(new Crumb(graph, enteredFrom));
+            return list;
+        }
+
+        /// Pushes a graph that is not in the trail on top of it (keeps the existing crumbs) and opens it.
+        public static void Push(NodeGraph graph, Node enteredFrom)
+        {
+            if (!graph) return;
+
+            SetChain(BuildPushChain(Chain, graph, enteredFrom));
+            NodeEditorWindow.Open(graph);
         }
 
         /// Opens the graph of the crumb and cuts off the crumbs after it. Focuses the node the child was entered from.

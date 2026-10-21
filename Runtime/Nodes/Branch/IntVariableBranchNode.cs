@@ -7,7 +7,7 @@ using Xprees.Variables.Reference.Primitive;
 namespace Xprees.Graph.Core.Nodes.Branch
 {
     [CreateNodeMenu("Branch/Int Variable Branch")]
-    public class IntVariableBranchNode : BranchBaseNode
+    public partial class IntVariableBranchNode : BranchBaseNode
     {
         [Header("Values to compare")]
         [Tooltip("The variable that will be used to manage flow.")]

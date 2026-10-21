@@ -11,7 +11,7 @@ namespace Xprees.Graph.Core.Nodes.Wait
     [NodeDescription("Wait for a specified amount of time before proceeding.")]
     [NodeResizableWidth(250)]
     [CreateNodeMenu("Wait/Wait for Time")]
-    public class WaitTimeNode : WaitBaseNode
+    public partial class WaitTimeNode : WaitBaseNode
     {
         [Header("Settings")]
         [Tooltip("Wait for x second time before moving on")]

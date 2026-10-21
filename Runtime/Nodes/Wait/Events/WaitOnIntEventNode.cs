@@ -6,7 +6,7 @@ namespace Xprees.Graph.Core.Nodes.Wait.Events
 {
     [NodeTint("#68427B")]
     [CreateNodeMenu("Wait/Wait on Int Event")]
-    public class WaitOnIntEventNode : WaitOnEventBaseNode<int>
+    public partial class WaitOnIntEventNode : WaitOnEventBaseNode<int>
     {
         [Tooltip("If true, the node will accept any value, otherwise it will only accept value if it fulfills the comparison value")]
         public bool acceptAnyValue;

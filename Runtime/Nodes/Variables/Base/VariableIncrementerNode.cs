@@ -9,7 +9,7 @@ namespace Xprees.Graph.Core.Nodes.Variables.Base
 {
     [NodeDescription("Increment a variable by a specified value on node Trigger.")]
     [NodeResizableWidth(300)]
-    public abstract class VariableIncrementerBaseNode<T> : LinearFlowBaseNode, IPassthroughNode
+    public abstract partial class VariableIncrementerBaseNode<T> : LinearFlowBaseNode, IPassthroughNode
     {
         [Header("Variable incrementing")]
         public ReferenceBase<T> incrementBy = new();

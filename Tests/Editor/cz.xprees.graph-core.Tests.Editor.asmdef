@@ -4,6 +4,9 @@
   "references": [
     "cz.xprees.graph-core",
     "cz.xprees.graph-core.editor",
+    "cz.xprees.variables",
+    "cz.xprees.core",
+    "UniTask",
     "XNode",
     "UnityEngine.TestRunner",
     "UnityEditor.TestRunner"

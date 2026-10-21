@@ -4,6 +4,7 @@ using UnityEngine;
 using Xprees.Core;
 using Xprees.Graph.Core.Attributes;
 using Xprees.Graph.Core.Base.Nodes;
+using Xprees.Graph.Core.Debugging;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -22,7 +23,8 @@ namespace Xprees.Graph.Core.Nodes.Debug
         protected override UniTask Trigger(CancellationToken cancellationToken = default)
         {
 #if UNITY_EDITOR
-            if (active)
+            // With the graph debugger on, the parser gate already held the flow before this node (Step / Continue work there).
+            if (active && GraphDebugHooks.Observer == null)
             {
                 // This will pause the execution of the graph until resumed in the editor.
                 EditorApplication.isPaused = true;

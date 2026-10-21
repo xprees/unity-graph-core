@@ -22,6 +22,8 @@ namespace Xprees.Graph.Core.Editor.Nodes.Debug
 
         private NoteNode _noteNode;
 
+        /// Notes are not part of the flow and draw their own body, so they are never dimmed by the debugger.
+        protected override bool SupportsDebugTint => false;
 
         public override void OnBodyGUI()
         {

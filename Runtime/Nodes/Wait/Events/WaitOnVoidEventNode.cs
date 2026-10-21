@@ -8,7 +8,7 @@ namespace Xprees.Graph.Core.Nodes.Wait.Events
     [NodeDescription("Wait for a void event to be raised. "
                      + "This node will trigger when the specified event is raised, allowing the graph to continue execution.")]
     [CreateNodeMenu("Wait/Wait on Void Event")]
-    public class WaitOnVoidEventNode : WaitOnEventBaseNode
+    public partial class WaitOnVoidEventNode : WaitOnEventBaseNode
     {
         [Header("Listens to")]
         public VoidEventChannelSO eventChannel;

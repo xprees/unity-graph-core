@@ -110,11 +110,11 @@ namespace Xprees.Graph.Core.Editor.Nodes
 
                     break;
                 case EventType.Repaint:
-                    // Move to bottom
-                    if (target.graph.nodes.IndexOf(target) != 0)
+                    // Groups are drawn below regular nodes. Only reorders when a group really stands above a regular node
+                    // (stable, so groups never shuffle each other), and never while playing (it would dirty the asset during a debug run).
+                    if (!Application.isPlaying && NodeGroupOrdering.MoveGroupsFirst(target.graph.nodes, n => n is NodeGroup))
                     {
-                        target.graph.nodes.Remove(target);
-                        target.graph.nodes.Insert(0, target);
+                        EditorUtility.SetDirty(target.graph);
                     }
 
                     // Add scale cursors

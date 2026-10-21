@@ -212,3 +212,144 @@ type already present in a graph as a warning (no auto-fix). Pasting skips nodes 
   Open button work for every `BaseNode` with a `NodeGraph` field, including your own nodes.
 - Graph relations are resolved by `GraphReferences.GetReferencedGraphs(node)`, which finds public or `[SerializeField]` fields of type `NodeGraph`.
 - `GraphValidator.Validate(graph)` is read-only and returns a list of `GraphIssue`; it can be used from your own tests or build checks.
+
+## Debugging
+
+The debugger works for every `GraphBase` graph (scenarios, dialogs, chats, sub-graphs). It is Editor-only: the runtime
+hooks (`GraphDebugHooks`)
+compile to nothing in player builds, and with the master toggle off the cost is a single null check.
+
+### Turning it on
+
+Press **Debug** in the graph toolbar (a global `EditorPrefs` switch, applies to all graphs). While on, a cheap trace
+(visited nodes, traversed
+edges, parser instances, history) is recorded for every graph, so a graph opened in the middle of a run already shows
+what happened. The scenario **Debug** buttons (editor toolbar and the in-game menu, Editor only) turn it on and open the
+graph for you.
+
+### Toolbar controls
+
+| Item                          | Description                                                                                                                                                                                                          |
+|-------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Debug**                     | Master toggle.                                                                                                                                                                                                       |
+| Instance dropdown             | `All` or one parser instance (`Main`, `Dialog: <actor>`, `Chat: <chat>`, `Async from <node> #n`, `Sub-graph via <node> #n`).                                                                                         |
+| **Follow**                    | Focuses the node the followed flow moves to; enters sub-graphs with correct breadcrumbs.                                                                                                                             |
+| **Continue** / **Step**       | Icon-only transport buttons, enabled when a flow is held at a breakpoint. Step runs to the next node of the same instance and breaks there.                                                                          |
+| **Eye** (Show trace)          | Toggle: draws the recorded run in Edit Mode too (after Play Mode the nodes look normal until this is on).                                                                                                            |
+| **Chevron** (next to the eye) | Trace menu: Clear trace, Heatmap (tints nodes by visit count, thickens edges), Coverage > (log scale, cumulative coverage, reset), Save trace as..., Load trace..., Load last run (see [Trace files](#trace-files)). |
+| **Map**                       | Toggles the minimap.                                                                                                                                                                                                 |
+| Status label                  | `Paused at <node> (#2)`, `Trace: loaded (read-only)`, `Coverage 7/10 (70%)`; ellipsised, full text in the tooltip.                                                                                                   |
+
+In windows narrower than about 900 px the toolbar shows icons only (Follow, Map, Frame All, Validate, Validator); the
+tooltips stay.
+
+### Node and edge visuals
+
+- Not visited yet: dimmed node. Visited: normal. Current node of an instance: outline plus instance badge
+  (`#3 Async from X`, `x2` visits).
+- Held at a breakpoint: red pulsing outline. Disabled nodes (for example an async start with `activeStart` off):
+  desaturated.
+- Edges: traversed = accent color and thicker, active edge brighter, untaken = dimmed while playing, dashed = ambiguous
+  (the port that was taken
+  could not be told apart, see [For node authors](#for-node-authors)). Hover an edge for
+  `taken N x, last 12.3 s ago (#2 Main)`.
+- Inline live values (`> value`, flashing on change) under fields that reference a variable, and a state line under the
+  node title (phase, time in
+  node, visits, last port plus the node's own `IGraphNodeDebugState` text).
+
+### Breakpoints, Step and Continue
+
+Toggle a breakpoint with the dot in the node header, the node context menu `Debug/Toggle Breakpoint`
+(`Debug/Disable Breakpoint`) or **F9** on the
+selected nodes. The flow stops **before** the node triggers and the Editor is paused (so the world does not keep
+running). A hit also opens the
+graph window and focuses the node when the graph was not open. A `PausePointNode` behaves like a breakpoint while the
+debugger is on.
+Breakpoints are stored per user in `UserSettings/GraphDebugBreakpoints.asset` by node id, never in the graph asset.
+
+### Variables and History panel
+
+A collapsible side panel with two tabs. **Variables** lists the variables used by the graph's nodes, live; bool, int,
+long, float, double, string and
+enum values are editable in Play Mode (the default value of the asset is untouched and reset on Play); click pings the
+asset and selects the nodes
+using it. **History** lists the parser instances and the recent history of the graph, click focuses the node.
+
+### Trace files
+
+The last run is saved automatically (when the debugger is on) to `Library/GraphDebug/LastRun.graphtrace`. The eye
+chevron menu > Save trace as / Load trace stores a run
+like a Profiler capture. A loaded trace is read-only, shown with the **Show trace** eye, and cannot be loaded during
+Play Mode. Nodes that no longer exist
+are skipped with one warning.
+
+### Search, bookmarks, minimap
+
+- **Ctrl+F** opens graph search (node name, type, note text, string fields, referenced assets; also in sub-graphs).
+  Enter / F3 next, Shift+F3
+  previous, click focuses the node.
+- **Ctrl+Shift+1..9** sets a bookmark on the selected node, **Ctrl+1..9** jumps to it
+  (`UserSettings/GraphBookmarks.asset`).
+- The minimap (bottom-right, **Map** toggle) shows nodes colored by state while debugging and the viewport; click or
+  drag pans the view.
+
+### Run from node
+
+On scenario graphs the node context menu has `Debug/Play scenario from here` and `... (without setup)`. The scenario
+starts at that node after a
+prelude (the linear chain from Start up to the first `Components` sub-graph) so the setup still runs. Effects of skipped
+nodes (emails, chats,
+variables) are missing; a warning says so. Dialog / chat nodes, async starts and non-flow nodes are offered disabled
+with the reason.
+
+### TODO validator
+
+`NoteNode` text, node names and group titles containing `TODO`, `FIXME` or `HACK` are reported by
+the [Graph Validator](#graph-validator) as
+`Todo` issues. They are not problems: the toolbar shows a separate TODO count (click cycles through them) and **Show
+TODOs** filters them in the
+validator window.
+
+### For node authors
+
+- Implement `IGraphNodeDebugState` (`string GetDebugState(in NodeDebugContext ctx)`) on nodes that wait or hold state,
+  in a `*.Debug.cs` partial
+  under `#if UNITY_EDITOR`. The context carries the parser, entry time, visit count and last port; node fields are
+  shared between instances, so
+  read per-instance values from the context.
+- Nodes that choose between several output ports should return the next node through `FollowPort(port)` (`BaseNode`), so
+  the edge taken is exact
+  instead of inferred (and ambiguous). Without it the debugger infers the edge from the connections.
+- Game code can add items to the node `Debug` menu with `GraphNodeDebugMenu.Register`, name a parser with
+  `GraphDebugHooks.SetDebugName`, start a
+  trace for a new run with `GraphDebugHooks.BeginRun`, and wrap code that needs a synchronous `Continue` in
+  `GraphDebugHooks.SuppressBreaks()`.
+
+### AsyncStart first node (experimental switch)
+
+An async start currently skips the `Trigger` of its first connected node.
+`GraphParserSettings.TriggerAsyncStartFirstNode` (default `false`,
+existing scenarios unchanged) fixes this. Editor toggle: `Tools/Graph/Trigger AsyncStart first node (experimental)`.
+Play-test before flipping the
+default, because nodes with effects or waits as the first node start behaving differently.
+
+### Shortcuts
+
+All are rebindable and scoped to the node editor window. Verify or rebind them under **Edit > Shortcuts >
+Xprees/Graph**, especially Ctrl+F,
+Ctrl+1..9 and F9, which can collide with Unity's own bindings.
+
+| Shortcut        | Action                         |
+|-----------------|--------------------------------|
+| F9              | Toggle breakpoint on selection |
+| Ctrl+F          | Find in graph                  |
+| F3 / Shift+F3   | Next / previous search result  |
+| Ctrl+Shift+1..9 | Set bookmark                   |
+| Ctrl+1..9       | Go to bookmark                 |
+| Alt+Up Arrow    | Go to parent graph             |
+| Ctrl+Alt+G      | Extract to SubGraph            |
+
+### Files that must stay out of version control
+
+- `UserSettings/GraphDebugBreakpoints.asset`, `UserSettings/GraphBookmarks.asset`, `UserSettings/GraphCoverage.asset`
+- `Library/GraphDebug/` (`LastRun.graphtrace`)

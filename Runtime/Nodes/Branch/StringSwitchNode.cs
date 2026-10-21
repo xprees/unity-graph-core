@@ -14,7 +14,7 @@ namespace Xprees.Graph.Core.Nodes.Branch
     [CreateNodeMenu("Branch/String Switch")]
     [NodeWidth(400)]
     [NodeTint("#27552E")]
-    public class StringSwitchNode : BaseNode, IPassthroughNode
+    public partial class StringSwitchNode : BaseNode, IPassthroughNode
     {
         [Input] public GraphConnection input;
 
@@ -43,18 +43,18 @@ namespace Xprees.Graph.Core.Nodes.Branch
                 if (!result) continue;
 
                 var caseOutputPort = this.GetDynamicPort(nameof(cases), i);
-                var caseConnectionNode = caseOutputPort?.Connection?.node;
+                var caseConnectionNode = FollowPort(caseOutputPort);
                 if (caseConnectionNode == null)
                 {
                     UnityEngine.Debug.LogWarning($"Case {i} in {nameof(StringSwitchNode)} in {graph.name} is not connected to any node.");
                     continue;
                 }
 
-                return new(caseConnectionNode as BaseNode);
+                return new(caseConnectionNode);
             }
 
             // Default case if no match found
-            var defaultCaseNextNode = GetOutputPort(nameof(defaultCase)).Connection.node as BaseNode;
+            var defaultCaseNextNode = FollowPort(GetOutputPort(nameof(defaultCase)));
             return new(defaultCaseNextNode);
         }
     }

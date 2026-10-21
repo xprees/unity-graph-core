@@ -12,7 +12,8 @@ namespace Xprees.Graph.Core.Base.Nodes
     [NodeResizableWidth(200)]
     [NodeTint("#03a345")]
     [AllowOnlyInGraphs(typeof(IAllowAsyncStartNodes))]
-    public abstract class AsyncStartBaseNode : BaseNode, IPassthroughNode, ITraverseGraphMixin, ICancellableFlowOwner, IRuntimeStateOwner
+    public abstract partial class AsyncStartBaseNode : BaseNode, IPassthroughNode, ITraverseGraphMixin, ICancellableFlowOwner,
+        IRuntimeStateOwner
     {
         [Output(connectionType = ConnectionType.Override)]
         public GraphConnection start;
@@ -37,10 +38,15 @@ namespace Xprees.Graph.Core.Base.Nodes
 
             using var flowCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, nodeToken);
             var token = flowCts.Token;
+#if UNITY_EDITOR
+            using var liveFlow = new LiveFlowScope(this); // editor-only debug counter
+#endif
 
             var startNode = await GetNextNode(token);
+            // The first connected node is only positioned on (see GraphParserSettings), falling back to this node means nothing to trigger.
             await (this as ITraverseGraphMixin)
-                .TraverseGraph(graph as GraphBase, startNode ?? this, token);
+                .TraverseGraph(graph as GraphBase, startNode ?? this, token,
+                    startNode != null && GraphParserSettings.TriggerAsyncStartFirstNode);
         }
 
         /// Starts the graph execution from this node when the event is raised.

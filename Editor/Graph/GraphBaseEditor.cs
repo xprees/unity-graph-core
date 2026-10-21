@@ -7,8 +7,12 @@ using XNode;
 using XNodeEditor;
 using Xprees.Graph.Core.Base;
 using Xprees.Graph.Core.Base.Nodes;
+using Xprees.Graph.Core.Editor.Debugger;
+using Xprees.Graph.Core.Editor.Minimap;
 using Xprees.Graph.Core.Editor.Navigation;
 using Xprees.Graph.Core.Editor.NodeMenu;
+using Xprees.Graph.Core.Editor.Nodes;
+using Xprees.Graph.Core.Editor.Search;
 using Xprees.Graph.Core.Editor.Toolbar;
 
 namespace Xprees.Graph.Core.Editor.Graph
@@ -39,19 +43,44 @@ namespace Xprees.Graph.Core.Editor.Graph
         /// Ports we already requested a repaint for. Ports never drawn by their node editor would otherwise repaint forever.
         private readonly HashSet<NodePort> _seededPorts = new();
 
+        public override void OnCreate()
+        {
+            base.OnCreate();
+            GuardedNodeEditors.EnsureInstalled();
+        }
+
         public override void OnGUI()
         {
+            using (GraphDebugMarkers.OnGui.Auto()) OnGuiInternal();
+        }
+
+        private void OnGuiInternal()
+        {
+            // Typing into the debug panel must not trigger xNode shortcuts (Delete, F, Ctrl+V ...)
+            var e = Event.current;
+            if ((e.type == EventType.KeyDown || e.type == EventType.KeyUp)
+                && (GraphDebugPanel.HasKeyboardFocus(window) || GraphSearchOverlay.HasKeyboardFocus(window))) e.Use();
+
             base.OnGUI();
 
+            // A node editor that threw while dimmed must not leave its GUI.color behind
+            if (GUI.color != Color.white) GUI.color = Color.white;
+
             GraphEditorToolbar.EnsureAttached(window, target);
+            GraphDebugPanel.EnsureAttached(window);
+            GraphMinimap.EnsureAttached(window);
             FilterCopyBuffer();
             HandleGroupBodyRightClick();
+            HandleBreakpointDotClick();
 
             if (Event.current.type == EventType.Repaint)
             {
-                EnsureConnectionPointsCached();
+                using (GraphDebugMarkers.ConnectionPoints.Auto()) EnsureConnectionPointsCached();
                 DrawHighlight();
+                using (GraphDebugMarkers.Overlays.Auto()) GraphDebugRenderer.DrawOverlays(window, target);
             }
+
+            using (GraphDebugMarkers.EdgeTooltip.Auto()) GraphEdgeTooltip.Handle(window, target);
 
             var currentTargetHash = target.GetHashCode();
             if (lastTargetHash == currentTargetHash) return;
@@ -59,6 +88,79 @@ namespace Xprees.Graph.Core.Editor.Graph
 
             OnGraphChange();
         }
+
+        #region Debugger visuals
+
+        // xNode asks for these on every event and for every connection (also with a null input while dragging), so they only read caches.
+        public override Gradient GetNoodleGradient(NodePort output, NodePort input) =>
+            IsHovered(output, input)
+                ? base.GetNoodleGradient(output, input)
+                : GraphDebugRenderer.GetEdgeStyle(this, output, input)?.Gradient ?? base.GetNoodleGradient(output, input);
+
+        public override float GetNoodleThickness(NodePort output, NodePort input) =>
+            GraphDebugRenderer.GetEdgeStyle(this, output, input)?.Thickness ?? base.GetNoodleThickness(output, input);
+
+        public override NoodleStroke GetNoodleStroke(NodePort output, NodePort input)
+        {
+            var style = GraphDebugRenderer.GetEdgeStyle(this, output, input);
+            return style != null && style.Stroke == NoodleStroke.Dashed ? NoodleStroke.Dashed : base.GetNoodleStroke(output, input);
+        }
+
+        private Rect _viewGrid;
+        private Vector2 _viewPan;
+        private float _viewZoom;
+        private Vector2 _viewSize;
+
+        /// A curvy connection that cannot reach the view is drawn straight (one draw call instead of one per few pixels), see <see cref="NoodleCulling"/>.
+        public override NoodlePath GetNoodlePath(NodePort output, NodePort input)
+        {
+            var path = base.GetNoodlePath(output, input);
+            if (path != NoodlePath.Curvy || !GraphLod.Enabled || !window || output == null || input == null) return path;
+
+            var points = window.portConnectionPoints;
+            if (!points.TryGetValue(output, out var from) || !points.TryGetValue(input, out var to)) return path;
+            if (HasReroutes(output, input)) return path;
+
+            return NoodleCulling.CanSkipCurve(ViewInGrid(), from.center, to.center) ? NoodlePath.Straight : path;
+        }
+
+        private static bool HasReroutes(NodePort output, NodePort input)
+        {
+            for (var i = 0; i < output.ConnectionCount; i++)
+            {
+                if (output.GetConnection(i) == input) return output.GetReroutePoints(i).Count > 0;
+            }
+
+            return false;
+        }
+
+        private Rect ViewInGrid()
+        {
+            var size = window.position.size;
+            if (_viewPan != window.panOffset || _viewZoom != window.zoom || _viewSize != size)
+            {
+                _viewPan = window.panOffset;
+                _viewZoom = window.zoom;
+                _viewSize = size;
+                var a = window.WindowToGridPosition(Vector2.zero);
+                var b = window.WindowToGridPosition(size);
+                _viewGrid = Rect.MinMaxRect(Mathf.Min(a.x, b.x), Mathf.Min(a.y, b.y), Mathf.Max(a.x, b.x), Mathf.Max(a.y, b.y));
+            }
+
+            return _viewGrid;
+        }
+
+        public override Color GetPortColor(NodePort port)
+        {
+            var color = base.GetPortColor(port);
+            if (port?.node != null && GraphDebugRenderer.GetState(port.node) == NodeVisualState.NotVisited) color.a *= 0.45f;
+            return color;
+        }
+
+        private bool IsHovered(NodePort output, NodePort input) =>
+            window && input != null && (window.hoveredPort == output || window.hoveredPort == input);
+
+        #endregion
 
         #region Node type restrictions & group right-click
 
@@ -108,6 +210,97 @@ namespace Xprees.Graph.Core.Editor.Graph
 
             NodeCreationPopup.Show(this, target, window, window.WindowToGridPosition(e.mousePosition), new Rect(e.mousePosition, Vector2.zero));
             e.Use();
+        }
+
+        private Node _dotPressedNode;
+        private Node _dotHoverNode;
+        private Vector2 _dotPressedMouse;
+        private int[] _dotPressedSelection;
+        private bool _dotPressedModifier;
+
+        /// Toggles a breakpoint when the dot in a node header is clicked. Handled here, from the raw mouse events after xNode's controls,
+        /// because the per-node header GUI sees a MouseDown xNode already used and shares the band with the title label and its description.
+        /// xNode's controls run first and select the node (Ctrl/Shift toggles the selection), a click on the dot puts the selection back.
+        private void HandleBreakpointDotClick()
+        {
+            var e = Event.current;
+            if (e.type == EventType.Layout) DotSelectionGuard.Snapshot();
+
+            if (e.rawType == EventType.MouseMove)
+            {
+                var hover = FindDotNodeAt(e.mousePosition);
+                if (hover != _dotHoverNode)
+                {
+                    _dotHoverNode = hover;
+                    window.Repaint();
+                }
+
+                return;
+            }
+
+            if (e.button != 0) return;
+
+            if (e.rawType == EventType.MouseDown)
+            {
+                _dotPressedNode = FindDotNodeAt(e.mousePosition);
+                _dotPressedMouse = e.mousePosition;
+                _dotPressedModifier = e.alt || e.control || e.shift;
+                _dotPressedSelection = _dotPressedNode ? DotSelectionGuard.LastSnapshot : null;
+                return;
+            }
+
+            if (e.rawType != EventType.MouseUp || !_dotPressedNode) return;
+
+            var pressed = _dotPressedNode;
+            _dotPressedNode = null;
+            if (!BreakpointDotLayout.IsClick(_dotPressedMouse, e.mousePosition) || FindDotNodeAt(e.mousePosition) != pressed) return;
+
+            DotSelectionGuard.Restore(_dotPressedSelection);
+            // The modifier counts when held at press OR release: letting go of Alt a moment before the mouse button must not turn it into a plain click
+            ApplyDotClick(pressed, _dotPressedModifier || e.alt || e.control || e.shift);
+            e.Use();
+        }
+
+        private void ApplyDotClick(Node node, bool altOrControl)
+        {
+            var action = BreakpointDotLayout.ResolveClick(GraphBreakpoints.Has(node), altOrControl);
+            switch (action)
+            {
+                case DotClickAction.Add:
+                    GraphBreakpoints.SetEnabled(node, true);
+                    break;
+                case DotClickAction.Remove:
+                    GraphBreakpoints.Remove(node);
+                    break;
+                case DotClickAction.ToggleEnabled:
+                    GraphBreakpoints.SetEnabled(node, !GraphBreakpoints.IsEnabled(node));
+                    break;
+            }
+
+            var message = BreakpointDotLayout.FeedbackMessage(action, GraphBreakpoints.IsEnabled(node), node.name,
+                GraphDebuggerSettings.Enabled);
+            window.ShowNotification(new GUIContent(message), 1.5);
+            window.Repaint();
+        }
+
+        /// The topmost node whose breakpoint dot area contains the window position. A node on top of the dot hides it.
+        private Node FindDotNodeAt(Vector2 windowPosition)
+        {
+            if (!window || !target) return null;
+
+            var nodes = target.nodes;
+            for (var i = nodes.Count - 1; i >= 0; i--)
+            {
+                var node = nodes[i];
+                if (node is not BaseNode || !window.nodeSizes.TryGetValue(node, out var size)) continue; // Groups draw no dot and lie below
+
+                var origin = window.GridToWindowPosition(node.position);
+                if (!new Rect(origin, size / window.zoom).Contains(windowPosition)) continue;
+
+                return BreakpointDotLayout.WindowHit(origin, size.x, window.zoom).Contains(windowPosition) ? node : null;
+            }
+
+            return null;
         }
 
         private bool IsInsideGroupBody(Vector2 windowPosition)

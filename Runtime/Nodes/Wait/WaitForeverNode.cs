@@ -9,7 +9,7 @@ namespace Xprees.Graph.Core.Nodes.Wait
     [NodeResizableWidth(200)]
     [NodeTint("#511915")]
     [CreateNodeMenu("Wait/Wait Forever")]
-    public class WaitForeverNode : WaitBaseNode
+    public partial class WaitForeverNode : WaitBaseNode
     {
         protected override UniTask Wait(CancellationToken cancellationToken = default) => UniTask.WaitUntilCanceled(CancellationToken.None);
     }

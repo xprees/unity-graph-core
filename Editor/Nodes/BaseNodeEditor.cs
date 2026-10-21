@@ -6,6 +6,7 @@ using UnityEngine;
 using XNode;
 using XNodeEditor;
 using Xprees.Graph.Core.Base.Nodes;
+using Xprees.Graph.Core.Editor.Debugger;
 using Xprees.Graph.Core.Editor.Refactor;
 
 namespace Xprees.Graph.Core.Editor.Nodes
@@ -18,21 +19,49 @@ namespace Xprees.Graph.Core.Editor.Nodes
 
         public override void OnHeaderGUI()
         {
+            using var marker = GraphDebugMarkers.NodeHeader.Auto();
+            BeginDebugVisuals();
             DrawCustomIconInHeader();
-            if (Event.current.type == EventType.MouseUp) HandleHeaderDoubleClickToEnterGraph(GUILayoutUtility.GetLastRect());
+            var headerRect = GUILayoutUtility.GetLastRect();
+            DrawBreakpointDot();
+            if (Event.current.type == EventType.MouseUp
+                && !BreakpointDotLayout.LocalHit(GetWidth(), window.zoom).Contains(Event.current.mousePosition))
+            {
+                HandleHeaderDoubleClickToEnterGraph(headerRect);
+            }
+
+            DrawRuntimeStateLine();
         }
 
         public override void AddContextMenuItems(GenericMenu menu)
         {
+            AddTopLevelBreakpointItems(menu);
             base.AddContextMenuItems(menu);
             SubGraphExtraction.AddMenuItem(menu, target);
+            AddDebugContextMenuItems(menu);
         }
 
         public override void OnBodyGUI()
         {
-            base.OnBodyGUI();
-            DrawEnterGraphButtons();
-            HandleResizingIfAttributePresent();
+            using var marker = GraphDebugMarkers.NodeBody.Auto();
+            try
+            {
+                if (IsLodCollapsed())
+                {
+                    using (GraphDebugMarkers.CollapsedBody.Auto()) DrawCollapsedBody();
+                }
+                else
+                {
+                    using (GraphDebugMarkers.BodyFields.Auto()) DrawBodyFields();
+                    using (GraphDebugMarkers.EnterButtons.Auto()) DrawEnterGraphButtons();
+                }
+
+                using (GraphDebugMarkers.Resizing.Auto()) HandleResizingIfAttributePresent();
+            }
+            finally
+            {
+                EndDebugVisuals();
+            }
         }
 
         /// Get the attribute of type TAttribute for target node or null if not present.
@@ -40,6 +69,7 @@ namespace Xprees.Graph.Core.Editor.Nodes
         {
             if (target == null) return null;
 
+            using var marker = GraphDebugMarkers.NodeAttributes.Auto();
             var targetType = target.GetType();
             var attributeType = typeof(TAttribute);
 

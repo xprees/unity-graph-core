@@ -9,7 +9,7 @@ namespace Xprees.Graph.Core.Nodes.Events.Base
 {
     [NodeTint("#7B2351")]
     [NodeWidth(300)]
-    public abstract class AnchorEventChannelBaseNode<T> : EventChannelBaseNode<T> where T : Object
+    public abstract partial class AnchorEventChannelBaseNode<T> : EventChannelBaseNode<T> where T : Object
     {
         [Tooltip("The Object to pass to the event channel. If Anchor left empty null will be passed.")]
         public RuntimeAnchorBase<T> anchor;

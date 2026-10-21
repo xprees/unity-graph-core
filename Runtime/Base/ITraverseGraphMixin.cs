@@ -8,9 +8,15 @@ namespace Xprees.Graph.Core.Base
     public interface ITraverseGraphMixin
     {
         /// Starts traversing through the graph from the specified start node or find start node automatically by default.
-        async UniTask TraverseGraph(GraphBase graph, BaseNode startNode = null, CancellationToken cancellationToken = default)
+        /// With triggerStartNode the start node is triggered once before the walk moves on from it.
+        async UniTask TraverseGraph(
+            GraphBase graph,
+            BaseNode startNode = null,
+            CancellationToken cancellationToken = default,
+            bool triggerStartNode = false
+        )
         {
-            using var graphParser = new GraphParserBase(graph, startNode);
+            using var graphParser = new GraphParserBase(graph, startNode, this as BaseNode, triggerStartNode && startNode != null);
 
             while (!graphParser.Ended)
             {

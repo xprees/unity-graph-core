@@ -5,7 +5,7 @@ using Xprees.Variables.Base;
 
 namespace Xprees.Graph.Core.Nodes.Wait.Variables.Base
 {
-    public abstract class WaitUntilVariableValueBaseNode<T> : VariableWaitBaseNode<T>
+    public abstract partial class WaitUntilVariableValueBaseNode<T> : VariableWaitBaseNode<T>
     {
         [Header("Expected Value")]
         [SerializeField] protected ReferenceBase<T> value = new();

@@ -35,6 +35,8 @@ namespace Xprees.Graph.Core.Editor.Nodes
 
         private void DrawEnterGraphButtons()
         {
+            if (!GraphReferences.MayReferenceGraphs(target)) return;
+
             foreach (var graph in GraphReferences.GetReferencedGraphs(target))
             {
                 var content = EditorGUIUtility.IconContent("d_forward");

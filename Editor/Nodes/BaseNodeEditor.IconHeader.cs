@@ -16,6 +16,10 @@ namespace Xprees.Graph.Core.Editor.Nodes
 
         private Texture2D scriptIcon = null;
 
+        private static GUIStyle iconStyle;
+        private readonly static GUIContent iconContent = new();
+        private readonly static GUIContent titleContent = new();
+
         private void DrawCustomIconInHeader()
         {
             scriptIcon = GetCachedScriptIcon();
@@ -25,23 +29,31 @@ namespace Xprees.Graph.Core.Editor.Nodes
             var nodeTooltip = GetNodeTooltip();
             if (scriptIcon != null)
             {
-                var iconStyle = new GUIStyle(GUI.skin.label)
+                iconStyle ??= new GUIStyle(GUI.skin.label)
                 {
                     fixedWidth = iconSize,
                     fixedHeight = iconSize,
                     padding = new RectOffset(-5, 0, 2, 0),
                     alignment = TextAnchor.MiddleLeft,
                 };
-                GUILayout.Label(new GUIContent(scriptIcon, nodeTooltip), iconStyle);
+                iconContent.image = scriptIcon;
+                iconContent.tooltip = nodeTooltip;
+                GUILayout.Label(iconContent, iconStyle);
             }
 
-            // Draw the node title
+            // Draw the node title (the shared header style is adjusted in place, no new objects per paint)
             var titleStyle = NodeEditorResources.styles.nodeHeader;
             titleStyle.fontSize = headerFontSize;
             titleStyle.alignment = TextAnchor.UpperLeft;
             titleStyle.wordWrap = true;
-            titleStyle.padding = new RectOffset(0, 0, 4, 0);
-            GUILayout.Label(new GUIContent(target.name, nodeTooltip), titleStyle);
+            var padding = titleStyle.padding;
+            padding.left = 0;
+            padding.right = Mathf.CeilToInt(BreakpointDotLayout.ReservedHeaderWidth);
+            padding.top = 4;
+            padding.bottom = 0;
+            titleContent.text = target.name;
+            titleContent.tooltip = nodeTooltip;
+            GUILayout.Label(titleContent, titleStyle);
 
             GUILayout.EndHorizontal();
         }
