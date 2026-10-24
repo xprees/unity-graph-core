@@ -7,6 +7,7 @@ using UnityEditor;
 using XNode;
 using Xprees.Graph.Core.Attributes;
 using Xprees.Graph.Core.Base.Nodes;
+using Xprees.Graph.Core.Editor.Graph;
 using Xprees.Graph.Core.Editor.NodeMenu;
 using Xprees.Graph.Core.Nodes.Debug;
 
@@ -62,12 +63,20 @@ namespace Xprees.Graph.Core.Editor.Validation
             if (fixable.Count == 0) return 0;
 
             // One Ctrl+Z reverts all fixes
-            Undo.IncrementCurrentGroup();
-            var undoGroup = Undo.GetCurrentGroup();
-            foreach (var issue in fixable) issue.Fix();
-            Undo.SetCurrentGroupName($"Fix graph connections ({graph.name})");
-            Undo.CollapseUndoOperations(undoGroup);
+            using (GraphUndo.Group($"Fix graph connections ({graph.name})"))
+            {
+                foreach (var issue in fixable) issue.Fix();
+            }
+
             return fixable.Count;
+        }
+
+        /// Applies the fix of one issue as its own undo step.
+        public static void ApplyFix(GraphIssue issue)
+        {
+            if (issue is not { IsFixable: true }) return;
+
+            using (GraphUndo.Group($"{issue.FixLabel} ({(issue.Node ? issue.Node.name : issue.Graph.name)})")) issue.Fix();
         }
 
         #region Checks

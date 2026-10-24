@@ -17,7 +17,7 @@ namespace Xprees.Graph.Core.Editor.Refactor
     /// Edits made after the extraction are undone first by the stack order, so the files always match the expected state.
     public static class SubGraphExtractionUndo
     {
-        private const string undoName = "Extract to SubGraph";
+        public const string UndoName = "Extract to SubGraph";
 
         private readonly static Dictionary<int, int> appliedSteps = new();
 
@@ -60,7 +60,8 @@ namespace Xprees.Graph.Core.Editor.Refactor
             return snapshot;
         }
 
-        /// Captures the state after the operation and registers the undo step.
+        /// Captures the state after the operation and registers the undo record in the current undo group, so the operation must run inside
+        /// its own group (GraphUndo.Group) together with any other Undo records it made.
         /// <paramref name="assetPaths"/> are the assets touched by the operation, the ones from <see cref="Begin"/> are included automatically.
         public static void Commit(Snapshot snapshot, IEnumerable<string> assetPaths)
         {
@@ -88,10 +89,9 @@ namespace Xprees.Graph.Core.Editor.Refactor
             record.hideFlags = HideFlags.HideAndDontSave;
             record.operationId = operationId;
 
-            Undo.IncrementCurrentGroup();
-            Undo.RecordObject(record, undoName);
+            Undo.RecordObject(record, UndoName);
             record.step = 1;
-            Undo.SetCurrentGroupName(undoName);
+            Undo.SetCurrentGroupName(UndoName);
             Undo.FlushUndoRecordObjects();
             appliedSteps[record.GetInstanceID()] = 1;
         }

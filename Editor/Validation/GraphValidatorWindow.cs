@@ -54,6 +54,16 @@ namespace Xprees.Graph.Core.Editor.Validation
             _errorIcon = EditorGUIUtility.IconContent("console.erroricon.sml");
             _warningIcon = EditorGUIUtility.IconContent("console.warnicon.sml");
             _infoIcon = EditorGUIUtility.IconContent("console.infoicon.sml");
+            Undo.undoRedoPerformed += OnUndoRedo;
+        }
+
+        private void OnDisable() => Undo.undoRedoPerformed -= OnUndoRedo;
+
+        // Undo rebuilds the ports of the restored nodes, fixes captured before it would act on stale ports
+        private void OnUndoRedo()
+        {
+            Revalidate();
+            Repaint();
         }
 
         // Graphs could be edited in the node editor in the meantime
@@ -251,7 +261,7 @@ namespace Xprees.Graph.Core.Editor.Validation
                     issue.IsFixable && !issue.IsSafeFix ? "Changes the runtime flow - review before applying." : null);
                 if (GUILayout.Button(fixContent, GUILayout.Width(fixButtonWidth)))
                 {
-                    issue.Fix();
+                    GraphValidator.ApplyFix(issue);
                     Revalidate(issue.Graph);
                     GUIUtility.ExitGUI();
                 }
@@ -276,11 +286,11 @@ namespace Xprees.Graph.Core.Editor.Validation
 
         private void FixAll()
         {
-            Undo.IncrementCurrentGroup();
-            var undoGroup = Undo.GetCurrentGroup();
-            foreach (var graph in _scannedGraphs.Where(g => g)) GraphValidator.FixAllSafe(graph);
-            Undo.SetCurrentGroupName("Fix all safe graph issues");
-            Undo.CollapseUndoOperations(undoGroup);
+            using (GraphUndo.Group("Fix all safe graph issues"))
+            {
+                foreach (var graph in _scannedGraphs.Where(g => g)) GraphValidator.FixAllSafe(graph);
+            }
+
             Revalidate();
             GUIUtility.ExitGUI();
         }

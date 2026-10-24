@@ -1,3 +1,4 @@
+using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
@@ -5,6 +6,7 @@ using XNode;
 using XNodeEditor;
 using Xprees.Graph.Core.Base;
 using Xprees.Graph.Core.Base.Nodes;
+using Xprees.Graph.Core.Editor.Graph;
 using Xprees.Graph.Core.Editor.Validation;
 
 namespace Xprees.Graph.Core.Editor.Refactor
@@ -25,6 +27,9 @@ namespace Xprees.Graph.Core.Editor.Refactor
             var source = plan.graph;
             if (!source || plan.entryPort == null) return null;
 
+            // xNode's Connect records the wired nodes on its own. Those records must share the group of the file-level undo record, a separate
+            // earlier step would later apply mid-extraction snapshots onto the restored graph. The file restore runs last and wins.
+            using var undo = GraphUndo.Group(SubGraphExtractionUndo.UndoName);
             var policy = SubGraphExtractionPolicies.GetFor(source);
             var snapshot = SubGraphExtractionUndo.Begin(policy.GetAffectedAssetPaths(source).Append(AssetDatabase.GetAssetPath(source)));
 
@@ -32,12 +37,13 @@ namespace Xprees.Graph.Core.Editor.Refactor
             policy.Configure(source, created);
 
             var path = AssetDatabase.GenerateUniqueAssetPath($"{folder}/{assetName}.asset");
-            created.name = System.IO.Path.GetFileNameWithoutExtension(path);
+            created.name = Path.GetFileNameWithoutExtension(path);
             AssetDatabase.CreateAsset(created, path);
 
             // xNode's importer already added the required Start / End nodes while creating the asset - reuse them
             var startNode = GetOrCreateNode<StartNode>(created, new Vector2(plan.TopLeft.x - startOffset, plan.entryPort.node.position.y));
-            var endNode = GetOrCreateNode<EndNode>(created, new Vector2(plan.BottomRight.x + endOffset, plan.exitTarget?.node.position.y ?? plan.Center.y));
+            var endNode = GetOrCreateNode<EndNode>(created,
+                new Vector2(plan.BottomRight.x + endOffset, plan.exitTarget?.node.position.y ?? plan.Center.y));
 
             CutCrossingEdges(plan);
             MoveNodes(plan, created);

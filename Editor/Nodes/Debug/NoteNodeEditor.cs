@@ -56,7 +56,9 @@ namespace Xprees.Graph.Core.Editor.Nodes.Debug
                 if (_editing)
                 {
                     GUI.SetNextControlName("DebugNoteTextField");
+                    EditorGUI.BeginChangeCheck();
                     var newText = EditorGUILayout.TextArea(_noteNode.text, textStyle);
+                    if (EditorGUI.EndChangeCheck()) SetText(newText);
 
                     // Set focus to the text field
                     EditorGUI.FocusTextInControl("DebugNoteTextField");
@@ -66,14 +68,9 @@ namespace Xprees.Graph.Core.Editor.Nodes.Debug
                         e.type == EventType.MouseDown && !GUILayoutUtility.GetLastRect().Contains(e.mousePosition))
                     {
                         _editing = false;
-                        _noteNode.text = newText;
                         GUIUtility.keyboardControl = 0; // Clear text selection
                         GUI.FocusControl(null);
                         e.Use();
-                    }
-                    else
-                    {
-                        _noteNode.text = newText;
                     }
                 }
                 else
@@ -87,6 +84,14 @@ namespace Xprees.Graph.Core.Editor.Nodes.Debug
             }
 
             HandleResizingIfAttributePresent();
+        }
+
+        /// Through the serialized object, so the edit is recorded for Undo and the TODO rename of NoteNode.OnValidate joins the same step.
+        private void SetText(string text)
+        {
+            serializedObject.Update();
+            serializedObject.FindProperty(nameof(NoteNode.text)).stringValue = text;
+            serializedObject.ApplyModifiedProperties();
         }
     }
 }

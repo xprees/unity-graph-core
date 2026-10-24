@@ -8,6 +8,7 @@ using UnityEngine;
 using XNode;
 using XNodeEditor;
 using Xprees.Graph.Core.Attributes;
+using Xprees.Graph.Core.Editor.Graph;
 
 namespace Xprees.Graph.Core.Editor.NodeMenu
 {
@@ -54,12 +55,25 @@ namespace Xprees.Graph.Core.Editor.NodeMenu
         )
         {
             var entries = BuildEntries(graphEditor, graph);
-            var popup = new NodeCreationPopup(entries, graph.GetType(), type =>
-            {
-                var node = graphEditor.CreateNode(type, gridPosition);
-                if (autoConnect) window.AutoConnect(node);
-            });
+            var popup = new NodeCreationPopup(entries, graph.GetType(),
+                type => CreateNode(graphEditor, window, type, gridPosition, autoConnect));
             PopupWindow.Show(activatorRect, popup);
+        }
+
+        private readonly static FieldInfo autoConnectOutputField =
+            typeof(NodeEditorWindow).GetField("autoConnectOutput", BindingFlags.Instance | BindingFlags.NonPublic);
+
+        /// Creates the node and auto-connects it to the dragged port as one undo step.
+        internal static Node CreateNode(NodeGraphEditor graphEditor, NodeEditorWindow window, Type type, Vector2 gridPosition, bool autoConnect)
+        {
+            using var undo = GraphUndo.Group($"Create {ObjectNames.NicifyVariableName(type.Name)}");
+            var node = graphEditor.CreateNode(type, gridPosition);
+            if (!autoConnect || !window) return node;
+
+            // An Override output drops its current connection, record the node on its other end as well
+            if (autoConnectOutputField?.GetValue(window) is NodePort source) GraphUndo.RecordPorts("Connect Port", source);
+            window.AutoConnect(node);
+            return node;
         }
 
         /// Opens the popup below the activator (e.g. the toolbar + button). The node is created in the center of the visible graph.

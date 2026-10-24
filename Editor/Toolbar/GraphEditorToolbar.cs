@@ -122,6 +122,7 @@ namespace Xprees.Graph.Core.Editor.Toolbar
             if (DebugIcons.Decorate(mapToggle, "Grid.Default", "UnityEditor.SceneHierarchyWindow")) MarkCollapsibleText(mapToggle);
             toolbar.Add(mapToggle);
             toolbar.Add(GraphLod.CreateToolbarToggle());
+            toolbar.Add(CreateLayoutGroup(window));
 
             var frameAll = CreateButton("d_ViewToolZoom", "Frame All", "Center the view on all nodes and fit them into the window.",
                 () => GraphBaseEditor.FrameAll(window));

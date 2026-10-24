@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
@@ -36,9 +36,11 @@ namespace Xprees.Graph.Core.Editor.Nodes
         public override void AddContextMenuItems(GenericMenu menu)
         {
             AddTopLevelBreakpointItems(menu);
+            AddFlowSelectionContextMenuItems(menu);
             base.AddContextMenuItems(menu);
             SubGraphExtraction.AddMenuItem(menu, target);
             AddDebugContextMenuItems(menu);
+            AddLayoutContextMenuItems(menu);
         }
 
         public override void OnBodyGUI()

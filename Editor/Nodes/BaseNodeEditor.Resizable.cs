@@ -24,6 +24,7 @@ namespace Xprees.Graph.Core.Editor.Nodes
 
             var baseNode = target as BaseNode;
             var width = baseNode!.width;
+            // Lazy clamp of an unset width while drawing, not a user edit, so not recorded
             if (width <= resizableWidthAttribute.minWidth) baseNode.width = resizableWidthAttribute.minWidth;
 
             return width;
@@ -67,6 +68,8 @@ namespace Xprees.Graph.Core.Editor.Nodes
                 case EventType.MouseDrag:
                     if (isDragging)
                     {
+                        // One mouse press is one undo group, every drag step joins it
+                        Undo.RecordObject(node, "Resize Node");
                         width = Mathf.Clamp((int) e.mousePosition.x + 16, Math.Max(60, minWidth), maxWidth);
                         NodeEditorWindow.current.Repaint();
                     }

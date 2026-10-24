@@ -8,6 +8,7 @@
     "cz.xprees.core",
     "UniTask",
     "XNode",
+    "XNodeEditor",
     "UnityEngine.TestRunner",
     "UnityEditor.TestRunner"
   ],

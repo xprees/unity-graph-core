@@ -45,6 +45,8 @@ namespace Xprees.Graph.Core.Editor.Nodes
                 case EventType.MouseDrag:
                     if (isDragging)
                     {
+                        // One mouse press is one undo group, every drag step joins it
+                        Undo.RecordObject(group, "Resize Group");
                         group.width = Mathf.Max(200, (int) e.mousePosition.x + 16);
                         group.height = Mathf.Max(100, (int) e.mousePosition.y - 34);
                         NodeEditorWindow.current.Repaint();
@@ -112,6 +114,8 @@ namespace Xprees.Graph.Core.Editor.Nodes
                 case EventType.Repaint:
                     // Groups are drawn below regular nodes. Only reorders when a group really stands above a regular node
                     // (stable, so groups never shuffle each other), and never while playing (it would dirty the asset during a debug run).
+                    // Not recorded on purpose: it only changes the draw order, is idempotent and is applied again after any undo,
+                    // recording it during Repaint would add invisible undo steps.
                     if (!Application.isPlaying && NodeGroupOrdering.MoveGroupsFirst(target.graph.nodes, n => n is NodeGroup))
                     {
                         EditorUtility.SetDirty(target.graph);
