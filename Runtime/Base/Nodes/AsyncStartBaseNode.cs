@@ -43,10 +43,10 @@ namespace Xprees.Graph.Core.Base.Nodes
 #endif
 
             var startNode = await GetNextNode(token);
-            // The first connected node is only positioned on (see GraphParserSettings), falling back to this node means nothing to trigger.
+            // The parser is positioned on the first connected node and triggers it once. Without a connection it is positioned on this node,
+            // which must not be triggered (it would start the flow again).
             await (this as ITraverseGraphMixin)
-                .TraverseGraph(graph as GraphBase, startNode ?? this, token,
-                    startNode != null && GraphParserSettings.TriggerAsyncStartFirstNode);
+                .TraverseGraph(graph as GraphBase, startNode ?? this, token, startNode != null);
         }
 
         /// Starts the graph execution from this node when the event is raised.

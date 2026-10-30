@@ -30,7 +30,6 @@ namespace Xprees.Graph.Core.Tests
             GraphDebugHooks.Observer = null;
             GraphDebugHooks.ResetStatics();
             GraphBreakpoints.ResetSession();
-            GraphParserSettings.TriggerAsyncStartFirstNode = false;
             TestRecordNode.Log.Clear();
             _tracer = new GraphRuntimeTracer();
         }
@@ -38,7 +37,6 @@ namespace Xprees.Graph.Core.Tests
         [TearDown]
         public void TearDown()
         {
-            GraphParserSettings.TriggerAsyncStartFirstNode = false;
             GraphDebugGate.CancelAll();
             foreach (var parser in _parsers) parser.Dispose();
             foreach (var graph in _graphs) Object.DestroyImmediate(graph);
@@ -146,28 +144,8 @@ namespace Xprees.Graph.Core.Tests
         }
 
         [Test]
-        public void AsyncStart_FirstConnectedNode_TriggerIsSkipped_CurrentBehaviour()
+        public void AsyncStart_FirstConnectedNode_IsTriggered([Values(false, true)] bool observed)
         {
-            // Open question 1 of the plan. The flow parser is positioned on R1 and Continue calls R1.MoveNext,
-            // so R1.Trigger never runs. When the AsyncStart fix (T0.7) lands this expectation flips to R1, R2.
-            var graph = Flow(out _, out _);
-            var asyncStart = Add<TestAsyncStartNode>(graph, "Async");
-            var r1 = Add<TestRecordNode>(graph, "R1");
-            var r2 = Add<TestRecordNode>(graph, "R2");
-            var end = Add<EndNode>(graph, "AsyncEnd");
-            Link(asyncStart.GetOutputPort("start"), r1.GetInputPort("input"));
-            Chain(r1, r2, end);
-            Parse(graph); // the graph has to be active for the async flow to run
-
-            asyncStart.Fire();
-
-            CollectionAssert.AreEqual(new[] { "R2" }, TestRecordNode.Log, "R1.Trigger is expected to be skipped (confirmed bug)");
-        }
-
-        [Test]
-        public void AsyncStart_FirstConnectedNode_SwitchOn_TriggersIt([Values(false, true)] bool observed)
-        {
-            GraphParserSettings.TriggerAsyncStartFirstNode = true;
             if (observed) GraphDebugHooks.Observer = _tracer;
             var graph = Flow(out _, out _);
             var asyncStart = Add<TestAsyncStartNode>(graph, "Async");
@@ -184,9 +162,8 @@ namespace Xprees.Graph.Core.Tests
         }
 
         [Test]
-        public void AsyncStart_WithoutConnection_SwitchOn_DoesNotLoop()
+        public void AsyncStart_WithoutConnection_DoesNotLoop()
         {
-            GraphParserSettings.TriggerAsyncStartFirstNode = true;
             var graph = Flow(out _, out _);
             var asyncStart = Add<TestAsyncStartNode>(graph, "Async");
             Parse(graph);

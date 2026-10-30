@@ -325,13 +325,13 @@ validator window.
   trace for a new run with `GraphDebugHooks.BeginRun`, and wrap code that needs a synchronous `Continue` in
   `GraphDebugHooks.SuppressBreaks()`.
 
-### AsyncStart first node (experimental switch)
+### AsyncStart first node
 
-An async start currently skips the `Trigger` of its first connected node.
-`GraphParserSettings.TriggerAsyncStartFirstNode` (default `false`,
-existing scenarios unchanged) fixes this. Editor toggle: `Tools/Graph/Trigger AsyncStart first node (experimental)`.
-Play-test before flipping the
-default, because nodes with effects or waits as the first node start behaving differently.
+An async start triggers its first connected node like every other node of the flow. The parser is positioned on that
+node and triggers it
+once, then continues. Without a connection nothing is triggered. (Until 2026-10 the first node was only positioned on
+and its `Trigger` never
+ran, so effects and waits placed first were silently skipped.)
 
 ### Shortcuts
 
