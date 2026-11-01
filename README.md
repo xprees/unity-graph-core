@@ -269,7 +269,9 @@ Breakpoints are stored per user in `UserSettings/GraphDebugBreakpoints.asset` by
 
 ### Variables and History panel
 
-A collapsible side panel with two tabs. **Variables** lists the variables used by the graph's nodes, live; bool, int,
+A collapsible side panel with two tabs. **Variables** lists the variables used by the graph's nodes (also the ones
+inside nested serializable classes
+and lists of them, for example the answer conditions of a `Dialog (Conditional answers)` node), live; bool, int,
 long, float, double, string and
 enum values are editable in Play Mode (the default value of the asset is untouched and reset on Play); click pings the
 asset and selects the nodes

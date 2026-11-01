@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Reflection;
 using UnityEngine;
 using XNode;
@@ -14,7 +15,10 @@ namespace Xprees.Graph.Core.Editor.Debugger
     /// their runtime value through the CurrentValue accessors, so aggregations compute and onValueChanged fires.
     public static class VariableAccess
     {
+        private const int MaxNestingDepth = 6;
         private static readonly Dictionary<Type, FieldInfo[]> FieldCache = new();
+        private static readonly Dictionary<Type, FieldInfo[]> NestedFieldCache = new();
+        private static readonly Dictionary<Type, bool> HolderCache = new();
         private static readonly Dictionary<Type, PropertyInfo> ValueProperties = new();
         private static readonly Dictionary<Type, Type> ValueTypes = new();
         private static readonly Dictionary<Type, ReferenceAccessor> ReferenceAccessors = new();
@@ -196,7 +200,7 @@ namespace Xprees.Graph.Core.Editor.Debugger
             return referenced ? referenced : null;
         }
 
-        /// The field of a node type that holds a variable or a reference (single value, not collections), null otherwise.
+        /// The field of a node type that holds a variable, a reference or a nested class with some (the caller skips collections), null otherwise.
         public static FieldInfo FindVariableField(Type nodeType, string fieldName)
         {
             foreach (var field in VariableFieldsOf(nodeType))
@@ -207,7 +211,7 @@ namespace Xprees.Graph.Core.Editor.Debugger
             return null;
         }
 
-        /// Variables the node references, in field order.
+        /// Variables the node references, in field order. Also the ones inside nested serializable classes and lists of them.
         public static void CollectVariables(Node node, List<VariableBaseSO> into)
         {
             if (!node) return;
@@ -224,24 +228,50 @@ namespace Xprees.Graph.Core.Editor.Debugger
                     continue;
                 }
 
-                if (value is IEnumerable enumerable and not string)
-                {
-                    foreach (var item in enumerable)
-                    {
-                        AddVariable(item, into);
-                    }
-
-                    continue;
-                }
-
-                AddVariable(value, into);
+                Walk(value, into, 0);
             }
         }
 
-        private static void AddVariable(object item, List<VariableBaseSO> into)
+        /// A variable or reference is added, a collection is walked item by item, a serializable nested class or struct is walked field by field
+        /// (for example the answers of a dialog node, each holding a condition variable).
+        private static void Walk(object value, List<VariableBaseSO> into, int depth)
         {
-            var variable = ResolveVariable(item);
-            if (variable && !into.Contains(variable)) into.Add(variable);
+            if (value == null || depth > MaxNestingDepth) return;
+
+            var variable = ResolveVariable(value);
+            if (variable)
+            {
+                if (!into.Contains(variable)) into.Add(variable);
+                return;
+            }
+
+            if (value is IEnumerable enumerable and not string)
+            {
+                foreach (var item in enumerable)
+                {
+                    Walk(item, into, depth + 1);
+                }
+
+                return;
+            }
+
+            var type = value.GetType();
+            if (!IsNestedSerializable(type)) return;
+
+            foreach (var field in NestedFieldsOf(type))
+            {
+                object nested;
+                try
+                {
+                    nested = field.GetValue(value);
+                }
+                catch (Exception)
+                {
+                    continue;
+                }
+
+                Walk(nested, into, depth + 1);
+            }
         }
 
         /// Single-value fields only: collection fields are listed by the panel but not drawn inline in the node body.
@@ -260,13 +290,57 @@ namespace Xprees.Graph.Core.Editor.Debugger
                 {
                     var isSerialized = field.IsPublic || field.GetCustomAttribute<SerializeField>() != null;
                     if (!isSerialized || field.IsNotSerialized) continue;
-                    if (IsVariableType(ElementTypeOf(field.FieldType))) result.Add(field);
+                    if (CanHoldVariables(ElementTypeOf(field.FieldType), 0)) result.Add(field);
                 }
             }
 
             var array = result.ToArray();
             FieldCache[nodeType] = array;
             return array;
+        }
+
+        /// A serializable class or struct of our own (not a Unity object, variable, reference, collection, string or enum) that nodes use to group settings.
+        private static bool IsNestedSerializable(Type type) =>
+            type != null && !type.IsPrimitive && !type.IsEnum && !type.IsInterface && !type.IsGenericTypeDefinition && !IsVariableType(type)
+            && type != typeof(string) && !typeof(Object).IsAssignableFrom(type) && !typeof(IEnumerable).IsAssignableFrom(type)
+            && type.IsDefined(typeof(SerializableAttribute), false)
+            && !(type.Namespace ?? string.Empty).StartsWith("System", StringComparison.Ordinal)
+            && !(type.Namespace ?? string.Empty).StartsWith("UnityEngine", StringComparison.Ordinal);
+
+        /// True for variables, references and nested serializable types that (at any depth) have a field holding one.
+        private static bool CanHoldVariables(Type type, int depth)
+        {
+            if (type == null || depth > MaxNestingDepth) return false;
+            if (IsVariableType(type)) return true;
+            if (!IsNestedSerializable(type)) return false;
+            if (HolderCache.TryGetValue(type, out var cached)) return cached;
+
+            HolderCache[type] = false; // a type that contains itself must not recurse forever
+            var result = SerializedFieldsOf(type).Any(f => CanHoldVariables(ElementTypeOf(f.FieldType), depth + 1));
+            HolderCache[type] = result;
+            return result;
+        }
+
+        private static FieldInfo[] NestedFieldsOf(Type type)
+        {
+            if (NestedFieldCache.TryGetValue(type, out var cached)) return cached;
+
+            var fields = SerializedFieldsOf(type).Where(f => CanHoldVariables(ElementTypeOf(f.FieldType), 0)).ToArray();
+            NestedFieldCache[type] = fields;
+            return fields;
+        }
+
+        private static IEnumerable<FieldInfo> SerializedFieldsOf(Type type)
+        {
+            const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
+            for (var t = type; t != null && t != typeof(object) && t != typeof(ValueType); t = t.BaseType)
+            {
+                foreach (var field in t.GetFields(flags))
+                {
+                    var isSerialized = field.IsPublic || field.GetCustomAttribute<SerializeField>() != null;
+                    if (isSerialized && !field.IsNotSerialized) yield return field;
+                }
+            }
         }
 
         private static Type ElementTypeOf(Type type)

@@ -338,6 +338,31 @@ namespace Xprees.Graph.Core.Tests
             Assert.AreEqual(1, usage.Single(p => p.Key == shared).Value.Count);
         }
 
+        [Test]
+        public void CollectUsage_FindsVariablesInsideNestedClassesAndLists()
+        {
+            var graph = Create<GraphBase>();
+            var node = graph.AddNode<TestNestedVariableNode>();
+
+            var a = Create<BoolVariable>();
+            a.name = "A";
+            var b = Create<BoolVariable>();
+            b.name = "B";
+            var c = Create<BoolVariable>();
+            c.name = "C";
+
+            node.single.condition = a;
+            node.list.Add(new TestNestedVariableNode.Item { condition = b });
+            node.list.Add(new TestNestedVariableNode.Item()); // answer without a condition
+            node.group.items.Add(new TestNestedVariableNode.Item { condition = c });
+            node.group.items.Add(new TestNestedVariableNode.Item { condition = a }); // same variable twice is listed once
+
+            var usage = GraphDebugPanel.CollectUsage(graph);
+
+            CollectionAssert.AreEqual(new[] { "A", "B", "C" }, usage.Select(p => p.Key.name));
+            Assert.AreEqual(1, usage.Single(p => p.Key == a).Value.Count);
+        }
+
         #endregion
 
         #region Edge hit test
