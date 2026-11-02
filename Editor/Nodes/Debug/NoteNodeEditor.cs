@@ -19,6 +19,17 @@ namespace Xprees.Graph.Core.Editor.Nodes.Debug
         };
 
         private bool _editing;
+        private bool _focusPending;
+
+        /// Unique per note, several notes can be visible at once
+        private string ControlName => "DebugNoteTextField_" + target.GetEntityId();
+
+        private void StopEditing()
+        {
+            _editing = false;
+            _focusPending = false;
+            if (GUI.GetNameOfFocusedControl() == ControlName) GUI.FocusControl(null);
+        }
 
         private NoteNode _noteNode;
 
@@ -30,22 +41,29 @@ namespace Xprees.Graph.Core.Editor.Nodes.Debug
             _noteNode = target as NoteNode;
             if (_noteNode == null) return;
 
-            // Handle click event to enter edit mode
+            // Every visible node runs this for every event, so only react to clicks inside THIS note (node-local coords inside its BeginArea)
+            // rawType: a click on another node's field may already be used by the time this note is drawn, it must still end editing here
             var e = Event.current;
-            if (e.type == EventType.MouseDown && e.button == 0)
+            if (e.rawType == EventType.MouseDown && e.button == 0)
             {
-                // Ignore clicks on resize handle
-                var isResizeArea = false;
+                var inside = false;
+                var inResizeHandle = false;
                 if (NodeEditorWindow.current.nodeSizes.TryGetValue(target, out var size))
                 {
-                    var lowerRight = new Rect(size.x - 34, size.y - 34, 30, 30);
-                    isResizeArea = lowerRight.Contains(e.mousePosition);
+                    inside = new Rect(Vector2.zero, size).Contains(e.mousePosition);
+                    inResizeHandle = new Rect(size.x - 34, size.y - 34, 30, 30).Contains(e.mousePosition);
                 }
 
-                if (!isResizeArea)
+                if (inside && !inResizeHandle && !_editing && e.type == EventType.MouseDown)
                 {
                     _editing = true;
-                    e.Use(); // Consume the event
+                    _focusPending = true;
+                    e.Use();
+                    NodeEditorWindow.current.Repaint();
+                }
+                else if (!inside && _editing)
+                {
+                    StopEditing(); // the click is not used, so it still reaches the node / field it was meant for
                 }
             }
 
@@ -55,21 +73,24 @@ namespace Xprees.Graph.Core.Editor.Nodes.Debug
             {
                 if (_editing)
                 {
-                    GUI.SetNextControlName("DebugNoteTextField");
+                    var controlName = ControlName;
+                    GUI.SetNextControlName(controlName);
                     EditorGUI.BeginChangeCheck();
                     var newText = EditorGUILayout.TextArea(_noteNode.text, textStyle);
                     if (EditorGUI.EndChangeCheck()) SetText(newText);
 
-                    // Set focus to the text field
-                    EditorGUI.FocusTextInControl("DebugNoteTextField");
-
-                    // Check for Enter key or clicking outside to exit edit mode
-                    if (e.type == EventType.KeyDown && e.keyCode == KeyCode.Return && e.control ||
-                        e.type == EventType.MouseDown && !GUILayoutUtility.GetLastRect().Contains(e.mousePosition))
+                    // Focus only right after entering edit mode, until the first repaint (focusing every event steals the keyboard from every
+                    // other field). Not just in the click event itself: that one is already used and the text area did not exist in its layout.
+                    if (_focusPending)
                     {
-                        _editing = false;
-                        GUIUtility.keyboardControl = 0; // Clear text selection
-                        GUI.FocusControl(null);
+                        EditorGUI.FocusTextInControl(controlName);
+                        if (e.type == EventType.Repaint) _focusPending = false;
+                    }
+
+                    // Ctrl+Enter exits edit mode
+                    if (e.type == EventType.KeyDown && e.keyCode == KeyCode.Return && e.control)
+                    {
+                        StopEditing();
                         e.Use();
                     }
                 }
