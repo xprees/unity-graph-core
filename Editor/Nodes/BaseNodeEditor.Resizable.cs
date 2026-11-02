@@ -36,22 +36,17 @@ namespace Xprees.Graph.Core.Editor.Nodes
             _isResizable = resizableWidthAttribute is { isResizable: true };
             if (!_isResizable) return;
 
-            // Handle click event to enter edit mode
+            // Consume a click on this node's body so it doesn't fall through to the grid. Only when the mouse is inside THIS node
+            // (node-local coords inside its BeginArea): every visible node runs this, and using the event for a click elsewhere
+            // would block the fields of all nodes drawn after this one.
             var e = Event.current;
-            if (e.type == EventType.MouseDown && e.button == 0)
+            if (e.type == EventType.MouseDown && e.button == 0
+                                              && NodeEditorWindow.current.nodeSizes.TryGetValue(target, out var size)
+                                              && new Rect(Vector2.zero, size).Contains(e.mousePosition))
             {
                 // Ignore clicks on resize handle
-                var isResizeArea = false;
-                if (NodeEditorWindow.current.nodeSizes.TryGetValue(target, out var size))
-                {
-                    var lowerRight = new Rect(size.x - 34, size.y - 34, 30, 30);
-                    isResizeArea = lowerRight.Contains(e.mousePosition);
-                }
-
-                if (!isResizeArea)
-                {
-                    e.Use(); // Consume the event
-                }
+                var lowerRight = new Rect(size.x - 34, size.y - 34, 30, 30);
+                if (!lowerRight.Contains(e.mousePosition)) e.Use();
             }
 
             var node = target as BaseNode;
