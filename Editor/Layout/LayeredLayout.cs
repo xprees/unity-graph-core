@@ -115,6 +115,27 @@ namespace Xprees.Graph.Core.Editor.Layout
                 }
             }
 
+            private FlowGraph()
+            {
+            }
+
+            /// Independent copy of the connections (the waypoints of long edges are added to the copy only).
+            public FlowGraph Copy()
+            {
+                var copy = new FlowGraph();
+                foreach (var pair in Outs) copy.Outs[pair.Key] = pair.Value.ToList();
+                foreach (var pair in Ins) copy.Ins[pair.Key] = pair.Value.ToList();
+                return copy;
+            }
+
+            /// Puts <paramref name="newTarget"/> in the place of <paramref name="oldTarget"/> among the outputs of <paramref name="from"/>.
+            public void Replace(int from, int oldTarget, int newTarget)
+            {
+                var outs = Outs[from];
+                outs[outs.IndexOf(oldTarget)] = newTarget;
+                Ins[newTarget].Add(from);
+            }
+
             /// Order of <paramref name="to"/> among the outputs of <paramref name="from"/>, as a fraction in (0, 1).
             public float PortFraction(int from, int to)
             {
@@ -417,12 +438,30 @@ namespace Xprees.Graph.Core.Editor.Layout
 
         #region Coordinates
 
-        /// Places one lane from <paramref name="top"/> down. Columns: x by the widest node of the previous column + gap. Rows: a node starts
-        /// level with the average of its predecessors, pushed down below the previous node of its column. Returns the lane's bottom.
+        /// Height of the invisible waypoint a long edge leaves in every column it skips. Real nodes are stacked around it, so the edge is
+        /// not hidden behind them.
+        private const float dummyHeight = 24f;
+
+        /// Most nodes a straight edge may pass behind (its own ends are not counted).
+        private const int maxNodesOnEdge = 1;
+
+        private const int compactionPasses = 4;
+
+        /// <summary>
+        /// Places one lane from <paramref name="top"/> down.
+        /// 1. Every edge that skips columns becomes a chain of invisible waypoints (one per skipped column). They take part in the crossing
+        ///    reduction and in the rows, so real nodes sit above or below a long edge instead of on it.
+        /// 2. Columns: x by the widest node of the previous column + gap. Rows: a node starts level with the average of its predecessors,
+        ///    pushed down below the previous node of its column.
+        /// 3. Compaction: a few barycenter passes pull every node (vertically, order and gaps kept) towards the average of its neighbours,
+        ///    which shortens the edges.
+        /// 4. Nudge: if a straight edge still passes behind more than <see cref="maxNodesOnEdge"/> nodes, the extra nodes move away from it.
+        /// Returns the bottom of the lane.
+        /// </summary>
         private static float PlaceLane(
             Lane lane,
-            Dictionary<int, Item> items,
-            FlowGraph graph,
+            Dictionary<int, Item> realItems,
+            FlowGraph realGraph,
             float top,
             float gapH,
             float gapV,
@@ -435,36 +474,266 @@ namespace Xprees.Graph.Core.Editor.Layout
                 foreach (var id in lane.Layers[l]) layerOf[id] = l;
             }
 
-            ReduceCrossings(lane, graph, layerOf);
+            // Work on copies: the waypoints never leak into the result or the lane
+            var items = new Dictionary<int, Item>(realItems);
+            var graph = realGraph.Copy();
+            var work = new Lane { Root = lane.Root };
+            work.Layers.AddRange(lane.Layers.Select(l => l.ToList()));
+            var dummies = new HashSet<int>();
+            SplitLongEdges(work, items, graph, layerOf, dummies);
+
+            ReduceCrossings(work, graph, layerOf);
 
             var y = new Dictionary<int, float>();
+            var columnX = new float[work.Layers.Count];
             var x = 0f;
-            var bottom = 0f;
-            for (var l = 0; l < lane.Layers.Count; l++)
+            for (var l = 0; l < work.Layers.Count; l++)
             {
-                var layer = lane.Layers[l];
+                columnX[l] = x;
+                var layer = work.Layers[l];
                 var previousBottom = float.NegativeInfinity;
                 var width = 0f;
                 foreach (var id in layer)
                 {
-                    var preds = graph.Ins[id].Where(from => layerOf.TryGetValue(from, out var fl) && fl < l).ToList();
-                    var desired = preds.Count > 0 ? LayoutGeometry.RoundToGrid(preds.Average(from => y[from])) : 0f;
-                    var min = float.IsNegativeInfinity(previousBottom) ? 0f : LayoutGeometry.CeilToGrid(previousBottom + gapV);
-                    var rowY = Mathf.Max(desired, min);
-                    y[id] = rowY;
-
                     var size = items[id].Size;
-                    previousBottom = rowY + size.y;
+                    var preds = graph.Ins[id].Where(from => layerOf.TryGetValue(from, out var fl) && fl < l).ToList();
+                    // Real nodes keep the top-aligned rule, a waypoint sits level with the middle of what feeds it
+                    var desired = preds.Count == 0
+                        ? 0f
+                        : dummies.Contains(id)
+                            ? LayoutGeometry.RoundToGrid(preds.Average(from => y[from] + items[from].Size.y / 2f) - size.y / 2f)
+                            : LayoutGeometry.RoundToGrid(preds.Average(from => y[from]));
+                    var min = float.IsNegativeInfinity(previousBottom) ? 0f : LayoutGeometry.CeilToGrid(previousBottom + gapV);
+                    y[id] = Mathf.Max(desired, min);
+                    previousBottom = y[id] + size.y;
                     width = Mathf.Max(width, size.x);
-                    bottom = Mathf.Max(bottom, previousBottom);
-                    result.Positions[id] = new Vector2(x, top + rowY);
-                    result.LayerOf[id] = l;
                 }
 
                 x = LayoutGeometry.CeilToGrid(x + width + gapH);
             }
 
+            Compact(work, items, graph, layerOf, y, gapV);
+            Nudge(work, items, realGraph, layerOf, dummies, columnX, y, gapV);
+
+            // Compaction and nudging can push rows above 0: shift the lane back so that it starts at 0
+            var minY = work.Layers.SelectMany(l => l).Where(id => !dummies.Contains(id)).Min(id => y[id]);
+            var bottom = 0f;
+            for (var l = 0; l < work.Layers.Count; l++)
+            {
+                foreach (var id in work.Layers[l])
+                {
+                    if (dummies.Contains(id)) continue;
+
+                    var rowY = y[id] - minY;
+                    bottom = Mathf.Max(bottom, rowY + items[id].Size.y);
+                    result.Positions[id] = new Vector2(columnX[l], top + rowY);
+                    result.LayerOf[id] = l;
+                }
+            }
+
             return top + bottom;
+        }
+
+        /// Replaces every edge that skips columns by a chain of waypoints, one in each skipped column.
+        private static void SplitLongEdges(
+            Lane work,
+            Dictionary<int, Item> items,
+            FlowGraph graph,
+            Dictionary<int, int> layerOf,
+            HashSet<int> dummies
+        )
+        {
+            var next = -1;
+            foreach (var from in work.Layers.SelectMany(l => l).Where(id => id >= 0).ToList())
+            {
+                foreach (var to in graph.Outs[from].ToList())
+                {
+                    if (!layerOf.TryGetValue(from, out var fromLayer) || !layerOf.TryGetValue(to, out var toLayer) || toLayer - fromLayer < 2)
+                    {
+                        continue;
+                    }
+
+                    var previous = from;
+                    for (var l = fromLayer + 1; l < toLayer; l++)
+                    {
+                        var id = next--;
+                        items[id] = new Item { Id = id, Size = new Vector2(0f, dummyHeight), Position = items[from].Position };
+                        graph.Outs[id] = new List<int>();
+                        graph.Ins[id] = new List<int>();
+                        if (previous == from)
+                        {
+                            // Keeps the port order of the real node: the waypoint takes the place of the target
+                            graph.Replace(from, to, id);
+                        }
+                        else
+                        {
+                            graph.Outs[previous].Add(id);
+                            graph.Ins[id].Add(previous);
+                        }
+
+                        work.Layers[l].Add(id);
+                        layerOf[id] = l;
+                        dummies.Add(id);
+                        previous = id;
+                    }
+
+                    graph.Outs[previous].Add(to);
+                    var ins = graph.Ins[to];
+                    ins[ins.IndexOf(from)] = previous;
+                }
+            }
+        }
+
+        /// Pulls every node vertically towards the middle of its neighbours. Column order and gaps are kept, so the crossings do not change.
+        private static void Compact(
+            Lane work,
+            Dictionary<int, Item> items,
+            FlowGraph graph,
+            Dictionary<int, int> layerOf,
+            Dictionary<int, float> y,
+            float gapV
+        )
+        {
+            for (var pass = 0; pass < compactionPasses; pass++)
+            {
+                var forward = pass % 2 == 0;
+                var start = forward ? 0 : work.Layers.Count - 1;
+                var step = forward ? 1 : -1;
+                for (var l = start; l >= 0 && l < work.Layers.Count; l += step)
+                {
+                    var layer = work.Layers[l];
+                    for (var i = 0; i < layer.Count; i++)
+                    {
+                        var id = layer[i];
+                        var neighbours = graph.Ins[id].Concat(graph.Outs[id]).Where(layerOf.ContainsKey).ToList();
+                        if (neighbours.Count == 0) continue;
+
+                        var size = items[id].Size;
+                        var desired = LayoutGeometry.RoundToGrid(neighbours.Average(n => y[n] + items[n].Size.y / 2f) - size.y / 2f);
+                        var min = i == 0
+                            ? float.NegativeInfinity
+                            : LayoutGeometry.CeilToGrid(y[layer[i - 1]] + items[layer[i - 1]].Size.y + gapV);
+                        var max = i == layer.Count - 1
+                            ? float.PositiveInfinity
+                            : Mathf.Floor((y[layer[i + 1]] - gapV - size.y) / LayoutGeometry.Grid) * LayoutGeometry.Grid;
+                        if (min > max) continue;
+
+                        y[id] = Mathf.Clamp(desired, min, max);
+                    }
+                }
+            }
+        }
+
+        /// While a straight edge passes behind more than <see cref="maxNodesOnEdge"/> real nodes, moves the extra ones away from it, pushing their
+        /// column neighbours along so nothing overlaps.
+        private static void Nudge(
+            Lane work,
+            Dictionary<int, Item> items,
+            FlowGraph realGraph,
+            Dictionary<int, int> layerOf,
+            HashSet<int> dummies,
+            float[] columnX,
+            Dictionary<int, float> y,
+            float gapV
+        )
+        {
+            for (var round = 0; round < 24; round++)
+            {
+                var moved = false;
+                foreach (var from in work.Layers.SelectMany(l => l).Where(id => id >= 0).ToList())
+                {
+                    foreach (var to in realGraph.Outs[from])
+                    {
+                        if (!layerOf.TryGetValue(from, out var fl) || !layerOf.TryGetValue(to, out var tl) || tl - fl < 2) continue;
+
+                        var p0 = new Vector2(columnX[fl] + items[from].Size.x, y[from] + items[from].Size.y / 2f);
+                        var p1 = new Vector2(columnX[tl], y[to] + items[to].Size.y / 2f);
+                        var blockers = BlockersOf(work, items, dummies, columnX, y, fl, tl, p0, p1);
+                        if (blockers.Count <= maxNodesOnEdge) continue;
+
+                        // The first one stays, every further one steps off the edge (to the side it already sits on)
+                        for (var k = maxNodesOnEdge; k < blockers.Count; k++)
+                        {
+                            MoveOffEdge(work, items, columnX, y, layerOf, blockers[k], p0, p1, gapV);
+                            moved = true;
+                        }
+                    }
+                }
+
+                if (!moved) break;
+            }
+        }
+
+        /// Real nodes strictly between the two columns that the straight edge p0 -> p1 passes behind, left to right.
+        private static List<int> BlockersOf(
+            Lane work,
+            Dictionary<int, Item> items,
+            HashSet<int> dummies,
+            float[] columnX,
+            Dictionary<int, float> y,
+            int fromLayer,
+            int toLayer,
+            Vector2 p0,
+            Vector2 p1
+        )
+        {
+            var list = new List<int>();
+            for (var l = fromLayer + 1; l < toLayer; l++)
+            {
+                foreach (var id in work.Layers[l])
+                {
+                    if (dummies.Contains(id)) continue;
+
+                    var size = items[id].Size;
+                    if (SegmentHitsRect(p0, p1, new Rect(columnX[l], y[id], size.x, size.y))) list.Add(id);
+                }
+            }
+
+            return list;
+        }
+
+        private static bool SegmentHitsRect(Vector2 p0, Vector2 p1, Rect rect)
+        {
+            if (Mathf.Approximately(p1.x, p0.x)) return false;
+
+            // The part of the segment above the rectangle's x range, compared with its y range
+            var t0 = Mathf.Clamp01((rect.xMin - p0.x) / (p1.x - p0.x));
+            var t1 = Mathf.Clamp01((rect.xMax - p0.x) / (p1.x - p0.x));
+            var yA = Mathf.Lerp(p0.y, p1.y, t0);
+            var yB = Mathf.Lerp(p0.y, p1.y, t1);
+            return Mathf.Max(yA, yB) >= rect.yMin && Mathf.Min(yA, yB) <= rect.yMax;
+        }
+
+        /// Moves the node off the edge (up when it sits above the edge, else down) and pushes its column neighbours along.
+        private static void MoveOffEdge(
+            Lane work,
+            Dictionary<int, Item> items,
+            float[] columnX,
+            Dictionary<int, float> y,
+            Dictionary<int, int> layerOf,
+            int id,
+            Vector2 p0,
+            Vector2 p1,
+            float gapV
+        )
+        {
+            var l = layerOf[id];
+            var size = items[id].Size;
+            var t = Mathf.Clamp01((columnX[l] + size.x / 2f - p0.x) / (p1.x - p0.x));
+            var edgeY = Mathf.Lerp(p0.y, p1.y, t);
+            var column = work.Layers[l];
+            var index = column.IndexOf(id);
+            if (y[id] + size.y / 2f < edgeY)
+            {
+                y[id] -= Mathf.Max(LayoutGeometry.Grid, LayoutGeometry.CeilToGrid(y[id] + size.y - edgeY + gapV));
+                for (var i = index - 1; i >= 0; i--) y[column[i]] = Mathf.Min(y[column[i]], y[column[i + 1]] - gapV - items[column[i]].Size.y);
+            }
+            else
+            {
+                y[id] += Mathf.Max(LayoutGeometry.Grid, LayoutGeometry.CeilToGrid(edgeY - y[id] + gapV));
+                for (var i = index + 1; i < column.Count; i++)
+                    y[column[i]] = Mathf.Max(y[column[i]], y[column[i - 1]] + items[column[i - 1]].Size.y + gapV);
+            }
         }
 
         #endregion

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEditor.ShortcutManagement;
 using UnityEngine;
@@ -16,20 +17,32 @@ namespace Xprees.Graph.Core.Editor.Layout
         private static void Arrange(ShortcutArguments args) =>
             GraphLayoutCommands.Run(args.context as NodeEditorWindow ?? EditorWindow.focusedWindow as NodeEditorWindow, LayoutCommand.Arrange);
 
-        /// Current binding for menu labels, e.g. "Shift+L", or empty when unbound.
+        /// Second binding of the same command, Ctrl+Alt+L (Cmd+Alt+L on macOS), next to Shift+L. Rebindable on its own.
+        public const string ArrangeAltId = "Xprees/Graph/Arrange Selection (Ctrl+Alt+L)";
+
+        [Shortcut(ArrangeAltId, typeof(NodeEditorWindow), KeyCode.L, ShortcutModifiers.Action | ShortcutModifiers.Alt)]
+        private static void ArrangeAlt(ShortcutArguments args) => Arrange(args);
+
+        /// Current bindings for menu labels, e.g. "Shift+L, Ctrl+Alt+L", or empty when both are unbound.
         public static string ArrangeBinding
         {
             get
             {
-                try
+                var bindings = new List<string>();
+                foreach (var id in new[] { ArrangeId, ArrangeAltId })
                 {
-                    var binding = ShortcutManager.instance.GetShortcutBinding(ArrangeId).ToString();
-                    return binding == "None" ? string.Empty : binding;
+                    try
+                    {
+                        var binding = ShortcutManager.instance.GetShortcutBinding(id).ToString();
+                        if (binding != "None") bindings.Add(binding);
+                    }
+                    catch (ArgumentException)
+                    {
+                        // Not registered (yet): nothing to show
+                    }
                 }
-                catch (ArgumentException)
-                {
-                    return string.Empty;
-                }
+
+                return string.Join(", ", bindings);
             }
         }
     }

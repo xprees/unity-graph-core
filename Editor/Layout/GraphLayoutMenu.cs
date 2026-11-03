@@ -20,6 +20,10 @@ namespace Xprees.Graph.Core.Editor.Layout
                 menu.AddItem(new GUIContent(prefix + path), false, () => GraphLayoutCommands.Run(window, captured));
                 if (command == LayoutCommand.Arrange) menu.AddSeparator(prefix);
             }
+
+            // Optional: only wraps the selection in a group, nothing moves
+            menu.AddSeparator(prefix);
+            menu.AddItem(new GUIContent(prefix + GraphGroupSelection.MenuLabel), false, () => GraphGroupSelection.Run(window));
         }
     }
 }

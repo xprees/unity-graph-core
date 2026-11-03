@@ -30,7 +30,8 @@ namespace Xprees.Graph.Core.Editor.Toolbar
 
             var menuButton = new ToolbarButton
             {
-                tooltip = "Layout menu: arrange, align (left / right / top / bottom / centers) and distribute the selected nodes.",
+                tooltip =
+                    "Layout menu: arrange, align (left / right / top / bottom / centers) and distribute the selected nodes, or wrap them in a new group.",
                 style = { flexDirection = FlexDirection.Row, alignItems = Align.Center, marginLeft = 0, paddingLeft = 2, paddingRight = 2 }
             };
             AddChevron(menuButton, 0f);

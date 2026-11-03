@@ -159,6 +159,70 @@ namespace Xprees.Graph.Core.Tests
             Assert.AreEqual(0, LayeredLayout.ReduceCrossings(layers, edges));
         }
 
+        /// Real nodes (not the two ends) that the straight edge from the output port to the input port passes behind.
+        private static int NodesOnEdge(LayeredLayout.Result result, IReadOnlyList<LayeredLayout.Item> items, LayoutEdge edge)
+        {
+            var from = items.First(i => i.Id == edge.From);
+            var to = items.First(i => i.Id == edge.To);
+            var p0 = result.Positions[from.Id] + new Vector2(from.Size.x, from.Size.y / 2f);
+            var p1 = result.Positions[to.Id] + new Vector2(0f, to.Size.y / 2f);
+            var count = 0;
+            foreach (var item in items.Where(i => i.Id != edge.From && i.Id != edge.To))
+            {
+                var rect = new Rect(result.Positions[item.Id], item.Size);
+                if (rect.xMin < p0.x || rect.xMax > p1.x) continue;
+
+                var yA = Mathf.Lerp(p0.y, p1.y, Mathf.InverseLerp(p0.x, p1.x, rect.xMin));
+                var yB = Mathf.Lerp(p0.y, p1.y, Mathf.InverseLerp(p0.x, p1.x, rect.xMax));
+                if (Mathf.Max(yA, yB) >= rect.yMin && Mathf.Min(yA, yB) <= rect.yMax) count++;
+            }
+
+            return count;
+        }
+
+        [Test]
+        public void LongEdge_PassesBehindAtMostOneNode()
+        {
+            // A chain of six with a skip edge from the first to the last: the chain nodes must not all hide the skip edge
+            var items = Items(6);
+            var edges = new[] { E(0, 1), E(1, 2), E(2, 3), E(3, 4), E(4, 5), E(0, 5, 1) };
+
+            var result = LayeredLayout.Arrange(items, edges);
+
+            Assert.LessOrEqual(NodesOnEdge(result, items, E(0, 5, 1)), 1);
+            AssertNoOverlaps(items.Select(i => new Rect(result.Positions[i.Id], i.Size)).ToList());
+        }
+
+        [Test]
+        public void LongEdges_InABranchingFlow_StayVisible_AndNodesNeverOverlap()
+        {
+            var items = Items(9);
+            var edges = new[]
+            {
+                E(0, 1, 0), E(0, 2, 1), E(1, 3), E(2, 3), E(3, 4), E(4, 5), E(5, 6), E(1, 6, 1), E(0, 6, 2), E(6, 7), E(2, 8, 1), E(7, 8),
+            };
+
+            var result = LayeredLayout.Arrange(items, edges);
+
+            foreach (var edge in edges) Assert.LessOrEqual(NodesOnEdge(result, items, edge), 1, $"{edge.From} -> {edge.To}");
+            AssertNoOverlaps(items.Select(i => new Rect(result.Positions[i.Id], i.Size)).ToList());
+            foreach (var position in result.Positions.Values)
+            {
+                Assert.AreEqual(0f, position.y % LayoutGeometry.Grid, 0.001f);
+            }
+        }
+
+        [Test]
+        public void Compaction_ChildrenStayCloseToTheirParent()
+        {
+            // One parent, one child: the child must not drift away vertically
+            var items = Items(3);
+            var result = LayeredLayout.Arrange(items, new[] { E(0, 1), E(1, 2) });
+
+            Assert.AreEqual(result.Positions[0].y, result.Positions[1].y);
+            Assert.AreEqual(result.Positions[1].y, result.Positions[2].y);
+        }
+
         #endregion
 
         #region Align / distribute
