@@ -123,9 +123,11 @@ namespace Xprees.Graph.Core.Editor.Nodes
             stateLineStyle ??= new GUIStyle(EditorStyles.miniLabel)
             {
                 clipping = TextClipping.Clip,
+                wordWrap = true,
                 padding = new RectOffset(6, 4, 0, 2),
                 normal = { textColor = new Color(0.85f, 0.85f, 0.85f) },
             };
+            // Wrapped: GUILayout.Label sizes the height to the node width, so long provider text stays fully visible.
             GUILayout.Label(_stateLine, stateLineStyle);
         }
 
