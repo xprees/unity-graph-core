@@ -99,11 +99,13 @@ namespace Xprees.Graph.Core.Editor.Layout
         {
             var itemSet = new HashSet<int>(items);
             var edges = new List<LayoutEdge>();
+            var externalEntries = new HashSet<int>();
             foreach (var edge in _model.Edges)
             {
                 var from = Lift(edge.From, scope, itemSet);
                 var to = Lift(edge.To, scope, itemSet);
                 if (from >= 0 && to >= 0 && from != to) edges.Add(new LayoutEdge(from, to, edge.Port));
+                else if (from < 0 && to >= 0) externalEntries.Add(to);
             }
 
             var layoutItems = items.Select(id => new LayeredLayout.Item
@@ -113,6 +115,7 @@ namespace Xprees.Graph.Core.Editor.Layout
                 Position = _rects[id].position,
                 IsEntry = _model.Nodes[id].Kind == LayoutNodeKind.Entry,
                 EntryPriority = _model.Nodes[id].EntryPriority,
+                IsExternalEntry = externalEntries.Contains(id),
             }).ToList();
             var layout = LayeredLayout.Arrange(layoutItems, edges, _gapH, _gapV);
 

@@ -101,6 +101,24 @@ namespace Xprees.Graph.Core.Tests
         }
 
         [Test]
+        public void PureCycle_SeededAtTheNodeEnteredFromOutside()
+        {
+            // 0 -> 1 -> 2 -> 0 (and 1 -> 3 -> 0), node 0 is the top-left one but 1 is the loop head entered from outside
+            var items = Items(4);
+            var list = items.Select(i => i).ToList();
+            var head = list[1];
+            head.IsExternalEntry = true;
+            list[1] = head;
+
+            var result = LayeredLayout.Arrange(list, new[] { E(0, 1), E(1, 2), E(1, 3, 1), E(2, 0), E(3, 0) });
+
+            Assert.AreEqual(1, result.Lanes[0].Root, "seeded from the loop head");
+            Assert.AreEqual(0, result.LayerOf[1]);
+            Assert.AreEqual(result.LayerOf[2], result.LayerOf[3]);
+            Assert.AreEqual(1, result.LayerOf[2]);
+        }
+
+        [Test]
         public void SeveralEntries_OneLaneEach_StackedVertically()
         {
             // Lane A: 0 -> 1, lane B: 2 -> 3, 2 is an entry with an incoming edge from 1 (still its own lane)

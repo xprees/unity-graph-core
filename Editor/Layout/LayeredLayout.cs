@@ -20,6 +20,10 @@ namespace Xprees.Graph.Core.Editor.Layout
 
             public bool IsEntry;
             public int EntryPriority;
+
+            /// Something outside the arranged items connects to it (e.g. the loop head of a group whose entry node is outside).
+            /// A cycle nobody else enters is seeded here, so the loop is cut at its return wires, not at its top-left node.
+            public bool IsExternalEntry;
         }
 
         public sealed class Lane
@@ -199,12 +203,13 @@ namespace Xprees.Graph.Core.Editor.Layout
                 if (!laneOf.ContainsKey(root)) Claim(root);
             }
 
-            // Cycles nobody enters from outside: seed them from their top-left node
+            // Cycles with no root: seed them from the node something outside leads into (the loop head), else from their top-left node
             while (laneOf.Count < items.Count)
             {
                 var rest = items.Keys.Where(id => !laneOf.ContainsKey(id)).ToList();
                 rest.Sort(Compare);
-                Claim(rest[0]);
+                var seed = rest.FirstOrDefault(id => items[id].IsExternalEntry);
+                Claim(rest.Contains(seed) && items[seed].IsExternalEntry ? seed : rest[0]);
             }
 
             foreach (var lane in lanes)
