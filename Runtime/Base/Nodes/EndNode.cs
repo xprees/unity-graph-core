@@ -5,7 +5,7 @@ using Xprees.Graph.Core.Attributes;
 namespace Xprees.Graph.Core.Base.Nodes
 {
     [NodeTint("#b40d1b")]
-    [NodeWidth(125)]
+    [NodeResizableWidth(125)]
     [CreateNodeMenu("End", -1)]
     [PinnedNode(order = 0)]
     public class EndNode : BaseNode

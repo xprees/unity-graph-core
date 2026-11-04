@@ -101,5 +101,92 @@ namespace Xprees.Graph.Core.Tests
             Assert.IsFalse(ToolbarLogic.IsNarrow(inBand, false));
             Assert.IsFalse(ToolbarLogic.IsNarrow(ToolbarLogic.NarrowWidth + ToolbarLogic.NarrowHysteresis, true));
         }
+
+        // Crumb widths 100 each, ellipsis 30
+        private static ToolbarLogic.BreadcrumbLayout Crumbs(int count, float available) =>
+            ToolbarLogic.ComputeBreadcrumbs(Enumerable.Repeat(100f, count).ToList(), 30f, available);
+
+        [Test]
+        public void Crumbs_FullChainWhenItFits()
+        {
+            var layout = Crumbs(4, 400f);
+            Assert.IsTrue(layout.ShowFirst);
+            Assert.IsFalse(layout.HasEllipsis);
+            Assert.IsFalse(layout.TruncateLast);
+            Assert.AreEqual(1, layout.TailStart);
+        }
+
+        [Test]
+        public void Crumbs_HidesMiddleKeepingFirstAndLast()
+        {
+            var layout = Crumbs(5, 330f); // first 100 + ellipsis 30 + last 100 fits, one more crumb (100) does not
+            Assert.IsTrue(layout.ShowFirst);
+            Assert.IsTrue(layout.HasEllipsis);
+            Assert.AreEqual(4, layout.TailStart);
+            Assert.AreEqual(1, layout.HiddenFrom);
+        }
+
+        [Test]
+        public void Crumbs_GreedyTailKeepsMoreCrumbsWhenTheyFit()
+        {
+            var layout = Crumbs(5, 330f + 100f);
+            Assert.IsTrue(layout.ShowFirst);
+            Assert.AreEqual(3, layout.TailStart);
+        }
+
+        [Test]
+        public void Crumbs_DropsFirstWhenItDoesNotFit()
+        {
+            var layout = Crumbs(5, 200f); // first + ellipsis + last = 230
+            Assert.IsFalse(layout.ShowFirst);
+            Assert.IsTrue(layout.HasEllipsis);
+            Assert.AreEqual(4, layout.TailStart);
+            Assert.IsFalse(layout.TruncateLast);
+        }
+
+        [Test]
+        public void Crumbs_TruncatesLastWhenNothingFits()
+        {
+            var layout = Crumbs(5, 100f); // ellipsis + last = 130
+            Assert.IsFalse(layout.ShowFirst);
+            Assert.IsTrue(layout.HasEllipsis);
+            Assert.AreEqual(4, layout.TailStart);
+            Assert.IsTrue(layout.TruncateLast);
+        }
+
+        [Test]
+        public void Crumbs_SingleCrumbOnlyTruncates()
+        {
+            Assert.IsFalse(Crumbs(1, 200f).TruncateLast);
+            var layout = Crumbs(1, 50f);
+            Assert.IsTrue(layout.ShowFirst);
+            Assert.IsFalse(layout.HasEllipsis);
+            Assert.IsTrue(layout.TruncateLast);
+        }
+
+        [Test]
+        public void Crumbs_TwoCrumbsCollapseToEllipsisAndLast()
+        {
+            var layout = Crumbs(2, 150f);
+            Assert.IsFalse(layout.ShowFirst);
+            Assert.IsTrue(layout.HasEllipsis);
+            Assert.AreEqual(1, layout.TailStart);
+        }
+
+        [Test]
+        public void Crumbs_NoWidthTruncatesLast()
+        {
+            Assert.IsTrue(Crumbs(3, 0f).TruncateLast);
+            Assert.IsFalse(Crumbs(0, 0f).HasEllipsis);
+        }
+
+        [Test]
+        public void MiddleEllipsis_KeepsBothEnds()
+        {
+            Assert.AreEqual("abc…xyz", ToolbarLogic.MiddleEllipsis("abcdefghxyz", 6));
+            Assert.AreEqual("abcd…xyz", ToolbarLogic.MiddleEllipsis("abcdefghxyz", 7));
+            Assert.AreEqual("short", ToolbarLogic.MiddleEllipsis("short", 5));
+            Assert.AreEqual("…", ToolbarLogic.MiddleEllipsis("short", 0));
+        }
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEditor;
@@ -12,6 +13,7 @@ using Xprees.Graph.Core.Editor.Minimap;
 using Xprees.Graph.Core.Editor.Navigation;
 using Xprees.Graph.Core.Editor.NodeMenu;
 using Xprees.Graph.Core.Editor.Validation;
+using PopupWindow = UnityEditor.PopupWindow;
 
 namespace Xprees.Graph.Core.Editor.Toolbar
 {
@@ -27,6 +29,11 @@ namespace Xprees.Graph.Core.Editor.Toolbar
         private const float fallbackTabHeight = 24f;
         private const float iconSize = 14f;
         private const float sidePadding = 8f;
+
+        // Separator arrow + item padding of a ToolbarBreadcrumbs item, plus a safety margin for text measured with IMGUI
+        private const float breadcrumbChrome = 26f;
+        private const float breadcrumbsMinWidth = 60f;
+        private const string ellipsis = "…";
 
         private const string toolbarName = "xprees-graph-toolbar";
         private const string breadcrumbsName = "xprees-graph-breadcrumbs";
@@ -108,12 +115,19 @@ namespace Xprees.Graph.Core.Editor.Toolbar
             addButton.style.marginRight = 6;
             toolbar.Add(addButton);
 
+            // Takes exactly the space the buttons leave (basis 0), so its width never depends on its content and the
+            // crumbs can be collapsed to fit without a layout feedback loop
             var breadcrumbs = new ToolbarBreadcrumbs { name = breadcrumbsName };
+            breadcrumbs.style.flexGrow = 1;
             breadcrumbs.style.flexShrink = 1;
+            breadcrumbs.style.flexBasis = 0;
+            breadcrumbs.style.minWidth = breadcrumbsMinWidth;
             breadcrumbs.style.overflow = Overflow.Hidden;
+            breadcrumbs.RegisterCallback<GeometryChangedEvent>(evt =>
+            {
+                if (Mathf.Abs(evt.newRect.width - evt.oldRect.width) > 1f) RefreshBreadcrumbs(toolbar);
+            });
             toolbar.Add(breadcrumbs);
-
-            toolbar.Add(new ToolbarSpacer { style = { flexGrow = 1 } });
 
             toolbar.Add(CreateDebugGroup(window));
             toolbar.Add(CreateSeparator());
@@ -210,16 +224,77 @@ namespace Xprees.Graph.Core.Editor.Toolbar
             var breadcrumbs = toolbar.Q<ToolbarBreadcrumbs>(breadcrumbsName);
             if (breadcrumbs == null) return;
 
+            var available = breadcrumbs.resolvedStyle.width;
+            if (float.IsNaN(available) || available <= 0f) return; // Not laid out yet, the geometry callback calls this again
+
             breadcrumbs.Clear();
             var chain = GraphNavigation.Chain;
-            for (var i = 0; i < chain.Count; i++)
+            if (chain.Count == 0) return;
+
+            var names = chain.Select(c => c.graph ? c.graph.name : "(missing)").ToList();
+            var style = EditorStyles.toolbarButton;
+            var widths = names.Select(n => style.CalcSize(new GUIContent(n)).x + breadcrumbChrome).ToList();
+            var ellipsisWidth = style.CalcSize(new GUIContent(ellipsis)).x + breadcrumbChrome;
+            var layout = ToolbarLogic.ComputeBreadcrumbs(widths, ellipsisWidth, available);
+            var fullPath = string.Join(" > ", names);
+
+            var tooltips = new List<string>();
+
+            void Push(int index, string text)
             {
-                var index = i;
-                var isCurrent = i == chain.Count - 1;
-                var graph = chain[i].graph;
-                breadcrumbs.PushItem(graph.name,
-                    isCurrent ? () => EditorGUIUtility.PingObject(graph) : () => GraphNavigation.NavigateTo(index));
+                var isCurrent = index == chain.Count - 1;
+                var graph = chain[index].graph;
+                breadcrumbs.PushItem(text, isCurrent ? () => EditorGUIUtility.PingObject(graph) : () => GraphNavigation.NavigateTo(index));
+                tooltips.Add(text == names[index] ? fullPath : $"{names[index]}\n{fullPath}");
             }
+
+            if (layout.ShowFirst) Push(0, names[0]);
+
+            if (layout.HasEllipsis)
+            {
+                breadcrumbs.PushItem(ellipsis, () => ShowChainPopup(breadcrumbs));
+                tooltips.Add(fullPath);
+            }
+
+            for (var i = Mathf.Max(layout.TailStart, layout.ShowFirst ? 1 : 0); i < chain.Count; i++)
+            {
+                var text = names[i];
+                if (layout.TruncateLast && i == chain.Count - 1)
+                {
+                    var used = (layout.ShowFirst ? widths[0] : 0f) + ellipsisWidth;
+                    text = FitMiddle(names[i], available - used - breadcrumbChrome, style);
+                }
+
+                Push(i, text);
+            }
+
+            // Items are the children of the breadcrumbs in push order
+            var items = breadcrumbs.Children().ToList();
+            for (var i = 0; i < items.Count && i < tooltips.Count; i++) items[i].tooltip = tooltips[i];
+        }
+
+        /// Longest middle-ellipsis form of the name that fits the width.
+        private static string FitMiddle(string name, float width, GUIStyle style)
+        {
+            for (var keep = name.Length; keep > 0; keep--)
+            {
+                var candidate = ToolbarLogic.MiddleEllipsis(name, keep);
+                if (style.CalcSize(new GUIContent(candidate)).x <= width) return candidate;
+            }
+
+            return ellipsis;
+        }
+
+        private static void ShowChainPopup(VisualElement breadcrumbs)
+        {
+            var chain = GraphNavigation.Chain;
+            var graphs = chain.Select(c => c.graph).ToList();
+            var popup = new BreadcrumbChainPopup(graphs, index =>
+            {
+                if (index == graphs.Count - 1) EditorGUIUtility.PingObject(graphs[index]);
+                else GraphNavigation.NavigateTo(index);
+            });
+            PopupWindow.Show(breadcrumbs.worldBound, popup);
         }
 
         private static void RefreshBadge(VisualElement toolbar, NodeGraph graph)

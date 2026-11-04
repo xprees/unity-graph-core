@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Xprees.Graph.Core.Editor.Toolbar
@@ -66,6 +67,74 @@ namespace Xprees.Graph.Core.Editor.Toolbar
         public const float NarrowHysteresis = 40f;
 
         public static bool IsNarrow(float width, bool wasNarrow) => width < (wasNarrow ? NarrowWidth + NarrowHysteresis : NarrowWidth);
+
+        /// Which breadcrumbs of a chain are shown. Visible: the first (if <see cref="ShowFirst"/>), an ellipsis item
+        /// for every crumb between it and <see cref="TailStart"/> (if any is hidden), then crumbs TailStart..last.
+        public readonly struct BreadcrumbLayout
+        {
+            public readonly bool ShowFirst;
+            public readonly int TailStart;
+            public readonly bool TruncateLast;
+            private readonly int _count;
+
+            public BreadcrumbLayout(int count, bool showFirst, int tailStart, bool truncateLast)
+            {
+                _count = count;
+                ShowFirst = showFirst;
+                TailStart = tailStart;
+                TruncateLast = truncateLast;
+            }
+
+            public int HiddenFrom => ShowFirst ? 1 : 0;
+            public bool HasEllipsis => TailStart > HiddenFrom && _count > 0;
+        }
+
+        /// Greedy collapse: full chain, else first + ellipsis + as many trailing crumbs as fit, else ellipsis + trailing crumbs,
+        /// else ellipsis + the last crumb cut short. Widths include the separator chrome of each item.
+        public static BreadcrumbLayout ComputeBreadcrumbs(IReadOnlyList<float> widths, float ellipsisWidth, float available)
+        {
+            var n = widths.Count;
+            if (n == 0) return new BreadcrumbLayout(0, false, 0, false);
+
+            var total = 0f;
+            for (var i = 0; i < n; i++) total += widths[i];
+            if (total <= available) return new BreadcrumbLayout(n, true, 1, false);
+            if (n == 1) return new BreadcrumbLayout(n, true, 1, true);
+
+            // Hidden crumbs are always replaced by an ellipsis item, so the first is only kept when it fits next to it
+            var withFirst = widths[0] + ellipsisWidth;
+            var tail = GreedyTail(widths, withFirst, available);
+            if (tail >= 2) return new BreadcrumbLayout(n, true, tail, false);
+
+            tail = GreedyTail(widths, ellipsisWidth, available);
+            if (tail >= 0) return new BreadcrumbLayout(n, false, Math.Max(tail, 1), false);
+
+            return new BreadcrumbLayout(n, false, n - 1, true);
+        }
+
+        /// First index of the trailing run that fits after <paramref name="used"/>, or -1 when not even the last crumb fits.
+        private static int GreedyTail(IReadOnlyList<float> widths, float used, float available)
+        {
+            var start = widths.Count;
+            while (start > 0 && used + widths[start - 1] <= available)
+            {
+                used += widths[start - 1];
+                start--;
+            }
+
+            return start == widths.Count ? -1 : start;
+        }
+
+        /// Keeps <paramref name="keep"/> characters of the name around a middle ellipsis ("bigLaunch_…nooping").
+        public static string MiddleEllipsis(string text, int keep)
+        {
+            if (string.IsNullOrEmpty(text) || keep >= text.Length) return text;
+            if (keep <= 0) return "…";
+
+            var head = (keep + 1) / 2;
+            var tailLength = keep - head;
+            return text.Substring(0, head) + "…" + text.Substring(text.Length - tailLength);
+        }
 
         public static List<TraceMenuEntry> BuildTraceMenu(TraceMenuState state)
         {
