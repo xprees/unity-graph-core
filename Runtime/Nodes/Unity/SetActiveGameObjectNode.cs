@@ -17,7 +17,9 @@ namespace Xprees.Graph.Core.Nodes.Unity
 
         protected override UniTask Trigger(CancellationToken cancellationToken = default)
         {
-            if (gameObjectAnchor != null) gameObjectAnchor.Value.SetActive(active.Value);
+            // The object can be gone already (shredded, destroyed with its scene): nothing to switch then
+            var target = gameObjectAnchor ? gameObjectAnchor.Value : null;
+            if (target) target.SetActive(active.Value);
 
             return UniTask.CompletedTask;
         }
