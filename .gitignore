@@ -39,6 +39,10 @@ obj
 # Recordings can get excessive in size
 /[Rr]ecordings/
 
+# Temp files
+/Assets/__GraphUndoTests/
+__GraphUndoTests.meta
+
 # IDEs
 /.vscode/
 .vscode
