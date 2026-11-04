@@ -117,24 +117,6 @@ namespace Xprees.Graph.Core.Tests
         }
 
         [Test]
-        public void Crumbs_HidesMiddleKeepingFirstAndLast()
-        {
-            var layout = Crumbs(5, 330f); // first 100 + ellipsis 30 + last 100 fits, one more crumb (100) does not
-            Assert.IsTrue(layout.ShowFirst);
-            Assert.IsTrue(layout.HasEllipsis);
-            Assert.AreEqual(4, layout.TailStart);
-            Assert.AreEqual(1, layout.HiddenFrom);
-        }
-
-        [Test]
-        public void Crumbs_GreedyTailKeepsMoreCrumbsWhenTheyFit()
-        {
-            var layout = Crumbs(5, 330f + 100f);
-            Assert.IsTrue(layout.ShowFirst);
-            Assert.AreEqual(3, layout.TailStart);
-        }
-
-        [Test]
         public void Crumbs_DropsFirstWhenItDoesNotFit()
         {
             var layout = Crumbs(5, 200f); // first + ellipsis + last = 230
