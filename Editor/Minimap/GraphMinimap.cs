@@ -6,6 +6,7 @@ using UnityEngine;
 using UnityEngine.UIElements;
 using XNode;
 using XNodeEditor;
+using Xprees.Graph.Core.Base.Nodes;
 using Xprees.Graph.Core.Editor.Debugger;
 using Object = UnityEngine.Object;
 
@@ -31,6 +32,8 @@ namespace Xprees.Graph.Core.Editor.Minimap
         private readonly static Color notVisitedColor = new(0.35f, 0.35f, 0.35f);
         private readonly static Color selectedColor = new(1f, 0.85f, 0.2f);
         private readonly static Color viewportColor = new(1f, 1f, 1f, 0.9f);
+        private const float groupFillAlpha = 0.15f;
+        private const float groupOutlineAlpha = 0.6f;
 
         public static bool Visible
         {
@@ -206,10 +209,19 @@ namespace Xprees.Graph.Core.Editor.Minimap
             foreach (var selected in Selection.objects) state.Selected.Add(selected);
 
             var nodes = window.graph.nodes;
+
+            // Groups first, tinted and outlined, so the nodes inside stay visible on top
+            for (var i = 0; i < nodes.Count; i++)
+            {
+                if (nodes[i] is not NodeGroup group) continue;
+
+                PaintGroup(painter, transform.ToMap(NodeRect(window, group)), group, state.Selected.Contains(group));
+            }
+
             for (var i = 0; i < nodes.Count; i++)
             {
                 var node = nodes[i];
-                if (!node) continue;
+                if (!node || node is NodeGroup) continue;
 
                 var rect = transform.ToMap(NodeRect(window, node));
                 rect.width = Mathf.Max(rect.width, 2f);
@@ -219,6 +231,44 @@ namespace Xprees.Graph.Core.Editor.Minimap
 
             var viewport = transform.ToMap(MinimapTransform.ViewportInGrid(window.panOffset, window.zoom, window.position.size));
             StrokeRect(painter, ClampTo(viewport, size), viewportColor);
+        }
+
+        /// Group color with the alpha raised so default (10% white) groups are still visible; the outline follows the debug state
+        /// of the nodes inside while a run is shown, and turns to the selection color when the group is selected.
+        private static void PaintGroup(Painter2D painter, Rect rect, NodeGroup group, bool selected)
+        {
+            var fill = group.color;
+            fill.a = Mathf.Max(fill.a, groupFillAlpha);
+            FillRect(painter, rect, fill);
+
+            var outline = group.color;
+            outline.a = Mathf.Max(outline.a, groupOutlineAlpha);
+            if (GraphDebugRenderer.IsActive && TryGetGroupDebugColor(group, out var debugColor)) outline = debugColor;
+            if (selected) outline = selectedColor;
+            StrokeRect(painter, rect, outline, 1f);
+        }
+
+        private static bool TryGetGroupDebugColor(NodeGroup group, out Color color)
+        {
+            var visited = false;
+            foreach (var inside in group.GetNodes())
+            {
+                switch (GraphDebugRenderer.GetState(inside))
+                {
+                    case NodeVisualState.PausedHere:
+                        color = GraphDebugRenderer.PausedNodeColor;
+                        return true;
+                    case NodeVisualState.Active:
+                        color = GraphDebugRenderer.ActiveNodeColor;
+                        return true;
+                    case NodeVisualState.Visited:
+                        visited = true;
+                        break;
+                }
+            }
+
+            color = visitedColor;
+            return visited;
         }
 
         private static Color ColorOf(Node node)
@@ -246,10 +296,10 @@ namespace Xprees.Graph.Core.Editor.Minimap
             painter.Fill();
         }
 
-        private static void StrokeRect(Painter2D painter, Rect rect, Color color)
+        private static void StrokeRect(Painter2D painter, Rect rect, Color color, float width = 1.5f)
         {
             painter.strokeColor = color;
-            painter.lineWidth = 1.5f;
+            painter.lineWidth = width;
             painter.BeginPath();
             Path(painter, rect);
             painter.Stroke();
