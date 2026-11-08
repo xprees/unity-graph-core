@@ -25,6 +25,10 @@ namespace Xprees.Graph.Core.Editor.Refactor
         /// Input port outside of the selection the flow continues in. Null when the extracted flow ends.
         public NodePort exitTarget;
 
+        /// End nodes outside of the selection that the flow left through, besides the one kept as <see cref="exitTarget"/>. Every End just finishes
+        /// the graph, so several of them count as one exit. The ones left without any connection after the cut are removed.
+        public List<Node> mergedEnds = new();
+
         /// Every edge that crosses the selection boundary (output, input). They are cut when extracting.
         public List<(NodePort output, NodePort input)> crossingEdges = new();
 

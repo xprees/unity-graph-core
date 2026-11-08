@@ -4,7 +4,6 @@ using UnityEditor;
 using UnityEngine;
 using XNode;
 using XNodeEditor;
-using Xprees.Graph.Core.Base;
 using Xprees.Graph.Core.Base.Nodes;
 using Xprees.Graph.Core.Editor.Graph;
 using Xprees.Graph.Core.Editor.Validation;
@@ -46,10 +45,11 @@ namespace Xprees.Graph.Core.Editor.Refactor
                 new Vector2(plan.BottomRight.x + endOffset, plan.exitTarget?.node.position.y ?? plan.Center.y));
 
             CutCrossingEdges(plan);
+            RemoveOrphanedEnds(plan);
             MoveNodes(plan, created);
             WireInsideGraph(plan, startNode, endNode);
 
-            var subGraphNode = CreateSubGraphNode(plan, created);
+            var subGraphNode = CreateSubGraphNode(plan, created, policy);
 
             EditorUtility.SetDirty(source);
             EditorUtility.SetDirty(created);
@@ -89,6 +89,19 @@ namespace Xprees.Graph.Core.Editor.Refactor
             }
         }
 
+        /// End nodes the flow left through besides the kept exit target: once the cut took their edges they would only sit there unreachable.
+        /// An End that still has other connections (another branch ends there) stays.
+        private static void RemoveOrphanedEnds(SubGraphExtractionPlan plan)
+        {
+            var source = plan.graph;
+            foreach (var end in plan.mergedEnds.Where(n => n && !n.Ports.Any(p => p.IsConnected)).ToList())
+            {
+                source.RemoveNode(end);
+                AssetDatabase.RemoveObjectFromAsset(end);
+                Object.DestroyImmediate(end, true);
+            }
+        }
+
         private static void MoveNodes(SubGraphExtractionPlan plan, NodeGraph target)
         {
             var source = plan.graph;
@@ -113,19 +126,20 @@ namespace Xprees.Graph.Core.Editor.Refactor
             foreach (var exit in plan.exitSources) exit.Connect(endInput);
         }
 
-        private static SubGraphNode CreateSubGraphNode(SubGraphExtractionPlan plan, NodeGraph created)
+        private static Node CreateSubGraphNode(SubGraphExtractionPlan plan, NodeGraph created, ISubGraphExtractionPolicy policy)
         {
             var source = plan.graph;
-            var node = source.AddNode<SubGraphNode>();
+            // The policy picks the node that plays the new graph (SubGraphNode, or the node of a graph type with its own runtime, e.g. a dialog)
+            var node = source.AddNode(policy.SubGraphNodeType);
             node.position = plan.Center;
             node.name = created.name;
-            node.subGraph = created as GraphBase;
+            policy.AssignSubGraph(node, created);
             AssetDatabase.AddObjectToAsset(node, source);
 
-            var input = node.GetInputPort(nameof(SubGraphNode.input));
+            var input = node.GetInputPort(nameof(LinearFlowBaseNode.input));
             foreach (var entrySource in plan.entrySources) entrySource.Connect(input);
 
-            if (plan.exitTarget != null) node.GetOutputPort(nameof(SubGraphNode.output)).Connect(plan.exitTarget);
+            if (plan.exitTarget != null) node.GetOutputPort(nameof(LinearFlowBaseNode.output)).Connect(plan.exitTarget);
             return node;
         }
     }

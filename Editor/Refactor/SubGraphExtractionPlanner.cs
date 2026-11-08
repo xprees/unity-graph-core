@@ -96,6 +96,9 @@ namespace Xprees.Graph.Core.Editor.Refactor
         /// Nodes tied to one kind of graph ([AllowOnlyInGraphs]) need the runtime of that graph (dialog / chat UI parsers). A SubGraphNode traverses its graph with a plain parser, so they would stop working.
         private static void CheckGraphSpecificNodes(SubGraphExtractionPlan plan, SubGraphExtractionResult result)
         {
+            // The policy of the graph type brings a sub-graph node with the runtime of that graph (e.g. the dialog parser), so they keep working
+            if (SubGraphExtractionPolicies.GetFor(plan.graph).SubGraphNodeType != typeof(SubGraphNode)) return;
+
             foreach (var node in plan.members)
             {
                 if (Attribute.GetCustomAttribute(node.GetType(), typeof(AllowOnlyInGraphsAttribute), true) == null) continue;
@@ -132,7 +135,8 @@ namespace Xprees.Graph.Core.Editor.Refactor
                 }
             }
 
-            foreach (var (output, input) in plan.crossingEdges.Where(e => !IsFlow(e.output) || !IsFlow(e.input)))
+            var policy = SubGraphExtractionPolicies.GetFor(plan.graph);
+            foreach (var (output, input) in plan.crossingEdges.Where(e => !policy.IsFlowPort(e.output) || !policy.IsFlowPort(e.input)))
             {
                 result.errors.Add($"'{output.node.name}.{output.fieldName}' -> '{input.node.name}.{input.fieldName}' is not a flow connection. "
                                   +
@@ -160,6 +164,14 @@ namespace Xprees.Graph.Core.Editor.Refactor
             }
 
             var exitTargets = exits.Select(e => e.input).Distinct().ToList();
+
+            // Every End node only finishes the graph, so a flow leaving into several of them has one exit (a dialog branch with an End per answer)
+            if (exitTargets.Count > 1 && exitTargets.All(t => t.node is EndNode))
+            {
+                plan.mergedEnds = exitTargets.Skip(1).Select(t => t.node).Distinct().ToList();
+                exitTargets = exitTargets.Take(1).ToList();
+            }
+
             if (exitTargets.Count > 1)
             {
                 result.errors.Add("The selection leads to " + exitTargets.Count + " different nodes (" + Describe(exitTargets) + "). " +
@@ -168,11 +180,10 @@ namespace Xprees.Graph.Core.Editor.Refactor
             else if (exitTargets.Count == 1)
             {
                 plan.exitTarget = exitTargets[0];
+                // Exits into the merged End nodes are exits too (they all end up on the End node of the new graph)
                 plan.exitSources = exits.Select(e => e.output).Distinct().ToList();
             }
         }
-
-        private static bool IsFlow(NodePort port) => port.ValueType == typeof(GraphConnection);
 
         private static string Describe(IEnumerable<NodePort> ports) => string.Join(", ", ports.Select(p => $"{p.node.name}.{p.fieldName}"));
 

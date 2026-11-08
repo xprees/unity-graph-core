@@ -1,11 +1,10 @@
-using System.Linq;
 using NUnit.Framework;
 using UnityEngine;
 using XNode;
 using Xprees.Graph.Core.Base;
 using Xprees.Graph.Core.Base.Nodes;
-using Xprees.Graph.Core.Nodes.Start;
 using Xprees.Graph.Core.Editor.Refactor;
+using Xprees.Graph.Core.Nodes.Start;
 
 namespace Xprees.Graph.Core.Tests
 {
@@ -37,7 +36,8 @@ namespace Xprees.Graph.Core.Tests
 
         private static void Link(SubGraphNode from, SubGraphNode to) => from.GetOutputPort("output").Connect(to.GetInputPort("input"));
 
-        private SubGraphExtractionResult Plan(params Node[] selection) => SubGraphExtractionPlanner.Plan(_graph, selection, requireAsset: false);
+        private SubGraphExtractionResult Plan(params Node[] selection) =>
+            SubGraphExtractionPlanner.Plan(_graph, selection, requireAsset: false);
 
         [Test]
         public void SingleMiddleNode_HasEntryAndExit()
@@ -136,6 +136,54 @@ namespace Xprees.Graph.Core.Tests
             var result = Plan(group);
 
             StringAssert.EndsWith("_Intro", result.plan.suggestedName);
+        }
+
+        [Test]
+        public void SeveralEndNodes_AreOneExit()
+        {
+            // B branches to two End nodes (a dialog branch with an End per answer): they only finish the graph, so it is one exit
+            _b.GetOutputPort("output").ClearConnections();
+            var branch = _graph.AddNode<TestBranchNode>();
+            var secondEnd = _graph.AddNode<EndNode>();
+            _b.GetOutputPort("output").Connect(branch.GetInputPort("input"));
+            branch.GetOutputPort("pass").Connect(_end.GetInputPort(nameof(EndNode.end)));
+            branch.GetOutputPort("fail").Connect(secondEnd.GetInputPort(nameof(EndNode.end)));
+
+            var result = Plan(_b, branch);
+
+            Assert.IsTrue(result.CanExtract, string.Join(" | ", result.errors));
+            Assert.AreEqual(_end, result.plan.exitTarget.node);
+            CollectionAssert.AreEqual(new Node[] { secondEnd }, result.plan.mergedEnds);
+            Assert.AreEqual(2, result.plan.exitSources.Count);
+        }
+
+        [Test]
+        public void DifferentNonEndExits_AreStillRefused()
+        {
+            // The merge is only for End nodes: two exits into different content nodes stay an error
+            _b.GetOutputPort("output").ClearConnections();
+            var branch = _graph.AddNode<TestBranchNode>();
+            var other = _graph.AddNode<SubGraphNode>();
+            _b.GetOutputPort("output").Connect(branch.GetInputPort("input"));
+            branch.GetOutputPort("pass").Connect(_c.GetInputPort("input"));
+            branch.GetOutputPort("fail").Connect(other.GetInputPort("input"));
+
+            Assert.IsFalse(Plan(_b, branch).CanExtract);
+        }
+
+        [Test]
+        public void DefaultPolicy_UsesSubGraphNodeAndGraphConnectionPorts()
+        {
+            var policy = SubGraphExtractionPolicies.GetFor(_graph);
+
+            Assert.AreEqual(typeof(SubGraphNode), policy.SubGraphNodeType);
+            Assert.IsTrue(policy.IsFlowPort(_a.GetOutputPort("output")));
+
+            var node = _graph.AddNode<SubGraphNode>();
+            var target = ScriptableObject.CreateInstance<GraphBase>();
+            policy.AssignSubGraph(node, target);
+            Assert.AreEqual(target, node.subGraph);
+            Object.DestroyImmediate(target);
         }
 
         [Test]

@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
 using XNode;
+using Xprees.Graph.Core.Base;
+using Xprees.Graph.Core.Base.Nodes;
 
 namespace Xprees.Graph.Core.Editor.Refactor
 {
@@ -27,6 +29,21 @@ namespace Xprees.Graph.Core.Editor.Refactor
         /// Other assets the extraction changes (e.g. a baked registry of the source). Their files are restored by undo.
         /// Called before and after the extraction.
         IEnumerable<string> GetAffectedAssetPaths(NodeGraph source);
+
+        /// The node that plays the new graph inside the source graph. It must derive from <see cref="LinearFlowBaseNode"/> (flow input / output).
+        /// The default <see cref="SubGraphNode"/> runs the graph with a generic parser. A graph type whose nodes need the runtime of that graph
+        /// (e.g. a dialog, shown by the dialog UI) returns its own node here, which also allows its graph specific nodes to be extracted.
+        Type SubGraphNodeType => typeof(SubGraphNode);
+
+        /// Whether the port carries the flow (only flow connections can cross into a sub-graph). By default the ports typed <see cref="GraphConnection"/>.
+        /// A graph type whose flow leaves through other ports (the answers of a dialog line are dynamic ports typed as text) says so here.
+        bool IsFlowPort(NodePort port) => port.ValueType == typeof(GraphConnection);
+
+        /// Points the created sub-graph node at the new graph. Override together with <see cref="SubGraphNodeType"/>.
+        void AssignSubGraph(Node subGraphNode, NodeGraph created)
+        {
+            if (subGraphNode is SubGraphNode sub) sub.subGraph = created as GraphBase;
+        }
     }
 
     public static class SubGraphExtractionPolicies
