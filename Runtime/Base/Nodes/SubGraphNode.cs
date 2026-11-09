@@ -2,13 +2,15 @@
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
+using Xprees.Core;
 
 namespace Xprees.Graph.Core.Base.Nodes
 {
     [NodeTint("#009C8B")]
     [NodeWidth(350)]
     [CreateNodeMenu("SubGraph", 0)]
-    public partial class SubGraphNode : LinearFlowBaseNode, IPassthroughNode, ITraverseGraphMixin, ICancellableFlowOwner
+    public partial class SubGraphNode : LinearFlowBaseNode, IPassthroughNode, ITraverseGraphMixin, ICancellableFlowOwner,
+        IRuntimeStateOwner
     {
         [Header("SubGraph")]
         public GraphBase subGraph;
@@ -29,6 +31,12 @@ namespace Xprees.Graph.Core.Base.Nodes
         public void CancelFlows()
         {
             subGraph?.CancelActiveFlows();
+        }
+
+        /// The reset of the parent graph is the only thing that reaches the nodes of a sub-graph.
+        public void ClearTransientState()
+        {
+            if (subGraph) subGraph.ClearTransientState();
         }
     }
 }

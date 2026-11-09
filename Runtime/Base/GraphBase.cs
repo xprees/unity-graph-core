@@ -52,13 +52,34 @@ namespace Xprees.Graph.Core.Base
         {
         }
 
-        /// Clears all transient in-flight parser sessions from this graph.
+        /// Same guard as <see cref="_isCancellingFlows"/>, for the transient state cascade.
+        private bool _isClearingTransientState;
+
+        /// Clears all transient in-flight parser sessions from this graph and the transient state of its nodes and sub-graphs.
+        /// Nodes are not part of the state registry (they are stateless for StateSnapshotService), so the graph is the only one that
+        /// reaches them. Without it a node keeps its flags from the previous run, e.g. a wait that already saw its event.
         public virtual void ClearTransientState()
         {
+            if (_isClearingTransientState) return;
+
             _activeParsers.Clear();
 #if UNITY_EDITOR
             GraphDebugHooks.Observer?.OnGraphCleared(this);
 #endif
+            if (nodes == null) return;
+
+            try
+            {
+                _isClearingTransientState = true;
+                foreach (var node in nodes)
+                {
+                    if (node is IRuntimeStateOwner stateOwner) stateOwner.ClearTransientState();
+                }
+            }
+            finally
+            {
+                _isClearingTransientState = false;
+            }
         }
 
         /// Cancels every asynchronous flow still in flight in this graph and its sub-graphs.
